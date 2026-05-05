@@ -1,0 +1,1755 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#26313a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Little Fox" />
+  <title>Little Fox Training</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="assets/changing-table-fox.png" />
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2933;
+      --muted: #65758b;
+      --line: #d8e0ea;
+      --paper: #fffaf4;
+      --panel: #ffffff;
+      --soft: #f5efe6;
+      --fox: #e87226;
+      --sky: #2f80a8;
+      --mint: #3f8f73;
+      --berry: #a34d67;
+      --gold: #c8892f;
+      --danger: #b94747;
+      --shadow: 0 16px 38px rgba(38, 31, 24, .12);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(232, 114, 38, .12), rgba(47, 128, 168, .12)),
+        var(--paper);
+      letter-spacing: 0;
+    }
+
+    body { overflow-x: hidden; }
+
+    button, input, select, textarea {
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    button { cursor: pointer; }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px;
+      background: #26313a;
+      color: #f8fbfd;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      border-right: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .brand {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 12px;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, .12);
+    }
+
+    .brand img {
+      width: 58px;
+      height: 58px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, .18);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.08;
+    }
+
+    .brand p {
+      margin: 3px 0 0;
+      color: rgba(248, 251, 253, .72);
+      font-size: 12px;
+    }
+
+    .tabs {
+      display: grid;
+      gap: 6px;
+    }
+
+    .tab {
+      border: 0;
+      color: rgba(248, 251, 253, .75);
+      background: transparent;
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      align-items: center;
+      text-align: left;
+      gap: 8px;
+      min-height: 42px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      font-weight: 700;
+    }
+
+    .tab:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+    .tab.active { background: #fffaf4; color: #26313a; }
+    .tab .ico { font-size: 17px; text-align: center; }
+
+    .privacy {
+      margin-top: auto;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .08);
+      color: rgba(248, 251, 253, .8);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .save-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      min-height: 24px;
+    }
+
+    .save-status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--mint);
+      box-shadow: 0 0 0 4px rgba(63, 143, 115, .14);
+    }
+
+    .main {
+      min-width: 0;
+      padding: 20px;
+    }
+
+    .topbar {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .title h2 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 42px);
+      line-height: 1;
+    }
+
+    .title p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      max-width: 850px;
+    }
+
+    .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      min-height: 38px;
+      padding: 8px 12px;
+      font-weight: 800;
+      color: #fff;
+      background: var(--ink);
+      box-shadow: 0 8px 18px rgba(31, 41, 51, .12);
+    }
+
+    .btn:hover { filter: brightness(.96); }
+    .btn.secondary { color: var(--ink); background: #fff; border-color: var(--line); box-shadow: none; }
+    .btn.fox { background: var(--fox); }
+    .btn.sky { background: var(--sky); }
+    .btn.danger { background: var(--danger); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .two { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+    .half { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .thirds { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      background: rgba(255, 255, 255, .9);
+      border: 1px solid rgba(216, 224, 234, .85);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .card.tight { box-shadow: none; }
+    .card-body { padding: 16px; }
+
+    .cover-image {
+      margin: 0 0 14px;
+      border: 1px solid rgba(216, 224, 234, .85);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      background: #fff;
+      height: clamp(240px, 34vw, 420px);
+    }
+
+    .cover-image img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 42%;
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .card-title h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .card-title p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stat {
+      padding: 15px;
+      display: grid;
+      gap: 8px;
+      min-height: 118px;
+    }
+
+    .stat .label { color: var(--muted); font-size: 13px; font-weight: 800; }
+    .stat .value { font-size: clamp(24px, 3vw, 34px); font-weight: 950; line-height: 1; }
+    .stat .sub { color: var(--muted); font-size: 12px; }
+    .stat.wet { border-top: 5px solid var(--sky); }
+    .stat.mess { border-top: 5px solid var(--gold); }
+    .stat.sleep { border-top: 5px solid var(--berry); }
+    .stat.money { border-top: 5px solid var(--mint); }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: #384656;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 10px 11px;
+      outline: none;
+      min-height: 40px;
+    }
+
+    textarea { resize: vertical; min-height: 86px; }
+    input:focus, select:focus, textarea:focus { border-color: var(--fox); box-shadow: 0 0 0 3px rgba(232, 114, 38, .15); }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field-full { grid-column: 1 / -1; }
+
+    .check-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .check input { width: auto; min-height: auto; }
+
+    .event-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .event-btn {
+      min-height: 54px;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 9px;
+      text-align: left;
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .event-btn.active {
+      border-color: rgba(232, 114, 38, .65);
+      background: rgba(232, 114, 38, .12);
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .item-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .item h4 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .item p {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .pill {
+      border-radius: 999px;
+      background: var(--soft);
+      color: #425160;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .pill.wet { background: rgba(47, 128, 168, .12); color: #1f6384; }
+    .pill.mess { background: rgba(200, 137, 47, .16); color: #8a5a18; }
+    .pill.dry { background: rgba(63, 143, 115, .14); color: #28735a; }
+    .pill.alert { background: rgba(185, 71, 71, .13); color: #9c3939; }
+    .pill.sleep { background: rgba(163, 77, 103, .13); color: #873b55; }
+
+    .stockbar {
+      height: 8px;
+      border-radius: 99px;
+      overflow: hidden;
+      background: #e8edf2;
+    }
+
+    .stockbar span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--mint);
+      border-radius: inherit;
+    }
+
+    .stockbar.low span { background: var(--danger); }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar input, .toolbar select { width: auto; min-width: 190px; }
+
+    .calendar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .weekday {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-align: center;
+      padding: 2px 0;
+    }
+
+    .day {
+      min-height: 112px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .day.out { opacity: .42; background: #f8fafc; }
+    .day.today { border-color: var(--fox); box-shadow: 0 0 0 3px rgba(232, 114, 38, .12); }
+
+    .day button {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      text-align: left;
+      font-weight: 950;
+      color: var(--ink);
+    }
+
+    .day-events {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-content: flex-start;
+    }
+
+    .chart-wrap {
+      position: relative;
+      min-height: 310px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 300px;
+      display: block;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .empty {
+      padding: 18px;
+      text-align: center;
+      color: var(--muted);
+      background: #fff;
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+      font-weight: 700;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(20, 27, 34, .52);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .modal.active { display: flex; }
+
+    .dialog {
+      width: min(760px, 100%);
+      max-height: min(760px, calc(100vh - 36px));
+      overflow: auto;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, .25);
+    }
+
+    .dialog-head {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      z-index: 2;
+    }
+
+    .dialog-head h3 { margin: 0; }
+
+    .dialog-body { padding: 16px; }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 80;
+      background: #26313a;
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+      transform: translateY(20px);
+      opacity: 0;
+      transition: .2s ease;
+      max-width: min(360px, calc(100vw - 36px));
+      font-weight: 750;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    .mobile-tabs { display: none; }
+
+    @media (max-width: 1050px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-tabs {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+      }
+      .mobile-tabs .tab {
+        display: inline-flex;
+        grid-template-columns: none;
+        min-width: max-content;
+        color: var(--ink);
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+      .mobile-tabs .tab.active { background: var(--ink); color: #fff; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .two, .half { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .quick-actions { justify-content: flex-start; }
+    }
+
+    @media (max-width: 720px) {
+      .main { padding: 12px; }
+      .cover-image { height: 360px; }
+      .stats, .thirds, .form-grid, .check-row, .event-grid { grid-template-columns: 1fr; }
+      .calendar-grid { gap: 4px; }
+      .weekday { font-size: 10px; }
+      .day { min-height: 86px; padding: 6px; }
+      .toolbar input, .toolbar select { width: 100%; min-width: 0; }
+      .btn { width: 100%; }
+      .quick-actions { width: 100%; }
+      .quick-actions .btn { flex: 1 1 150px; }
+      .item-head { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="assets/changing-table-fox.png" alt="Baby fox mascot" />
+        <div>
+          <h1>Little Fox Training</h1>
+          <p>Private inventory, logs, trends, and costs.</p>
+        </div>
+      </div>
+      <nav class="tabs" id="desktopTabs"></nav>
+      <div class="privacy">
+        Auto-saved on this device. Export backups before clearing browser data or switching phones.
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="mobile-tabs" id="mobileTabs"></div>
+
+      <div class="topbar">
+        <div class="title">
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="pageSub">A complete local tracker for diaper stock, daily events, sleep trends, and supply spending.</p>
+        </div>
+        <div class="quick-actions">
+          <span class="save-status" id="saveStatus">Auto-saved on this device</span>
+          <button class="btn fox" data-goto="log">Add Log</button>
+          <button class="btn sky" data-goto="inventory">Add Case</button>
+          <button class="btn secondary" id="exportBtn">Export Backup</button>
+        </div>
+      </div>
+
+      <section class="section active" id="dashboard"></section>
+      <section class="section" id="log"></section>
+      <section class="section" id="inventory"></section>
+      <section class="section" id="calendar"></section>
+      <section class="section" id="trends"></section>
+      <section class="section" id="expenses"></section>
+      <section class="section" id="settings"></section>
+    </main>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h3 id="modalTitle">Edit</h3>
+        <button class="btn secondary" id="closeModal">Close</button>
+      </div>
+      <div class="dialog-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORE_KEY = "little_fox_training_app_v1";
+    const todayIso = () => new Date().toISOString().slice(0, 10);
+    const currentTime = () => new Date().toTimeString().slice(0, 5);
+    const money = value => `$${Number(value || 0).toFixed(2)}`;
+    const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const safeNumber = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+
+    const eventMeta = {
+      wet: { label: "Wet", cls: "wet" },
+      mess: { label: "Messed", cls: "mess" },
+      dry: { label: "Dry", cls: "dry" }
+    };
+
+    const tabs = [
+      ["dashboard", "Dashboard", "Home"],
+      ["log", "Daily Log", "Log"],
+      ["inventory", "Inventory", "Stock"],
+      ["calendar", "Calendar", "Dates"],
+      ["trends", "Trends", "Chart"],
+      ["expenses", "Expenses", "Money"],
+      ["settings", "Settings", "Lock"]
+    ];
+
+    const defaultState = {
+      diapers: [
+        { id: "d1", brand: "Rearz", style: "Barnyard", size: "Large", count: 36, perCase: 36, casePrice: 119.99, lowStock: 10 },
+        { id: "d2", brand: "InControl", style: "BeDry Night", size: "Large", count: 48, perCase: 48, casePrice: 104.99, lowStock: 12 },
+        { id: "d3", brand: "ABU", style: "LittlePawz", size: "Large", count: 22, perCase: 40, casePrice: 99.99, lowStock: 10 },
+        { id: "d4", brand: "Tykables", style: "Camelots", size: "Large", count: 18, perCase: 40, casePrice: 109.99, lowStock: 10 }
+      ],
+      logs: [
+        { id: "l1", date: "2026-05-01", time: "07:20", diaperId: "d2", event: "wet", sleep: true, leakedInBed: false, leakedWhileAwake: false, daytime: false, nightAccident: false, dayAccident: false, notes: "Woke up wet, no leak." },
+        { id: "l2", date: "2026-05-02", time: "07:10", diaperId: "d2", event: "dry", sleep: true, leakedInBed: false, leakedWhileAwake: false, daytime: false, nightAccident: false, dayAccident: false, notes: "Dry morning." },
+        { id: "l3", date: "2026-05-03", time: "14:35", diaperId: "d1", event: "wet", sleep: false, leakedInBed: false, leakedWhileAwake: true, daytime: true, nightAccident: false, dayAccident: true, notes: "Small daytime leak." },
+        { id: "l4", date: "2026-05-04", time: "17:45", diaperId: "d3", event: "mess", sleep: false, leakedInBed: false, leakedWhileAwake: false, daytime: true, nightAccident: false, dayAccident: false, notes: "Changed right away." },
+        { id: "l5", date: "2026-05-05", time: "06:55", diaperId: "d2", event: "wet", sleep: true, leakedInBed: false, leakedWhileAwake: false, daytime: false, nightAccident: false, dayAccident: false, notes: "Overnight use." }
+      ],
+      purchases: [
+        { id: "p1", date: "2026-04-27", diaperId: "d1", cases: 1, units: 36, pricePerCase: 119.99, total: 119.99 },
+        { id: "p2", date: "2026-04-29", diaperId: "d2", cases: 1, units: 48, pricePerCase: 104.99, total: 104.99 }
+      ],
+      expenses: [
+        { id: "e1", date: "2026-05-01", category: "Baby powder", brand: "Johnson's", item: "Powder", amount: 7.99 },
+        { id: "e2", date: "2026-05-02", category: "Changing pads", brand: "Generic", item: "Disposable pads", amount: 18.99 },
+        { id: "e3", date: "2026-05-03", category: "Wipes", brand: "Generic", item: "Wipes pack", amount: 6.49 }
+      ],
+      calendarCursor: todayIso().slice(0, 7),
+      filters: { inventorySearch: "", trendRange: "30", expenseRange: "all" },
+      privateMode: false
+    };
+
+    let state = loadState();
+    let activeTab = "dashboard";
+
+    function loadState() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORE_KEY));
+        if (!parsed || typeof parsed !== "object") return structuredClone(defaultState);
+        return {
+          ...structuredClone(defaultState),
+          ...parsed,
+          filters: { ...defaultState.filters, ...(parsed.filters || {}) }
+        };
+      } catch {
+        return structuredClone(defaultState);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      const el = document.getElementById("saveStatus");
+      if (el) {
+        el.textContent = `Auto-saved ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+      }
+    }
+
+    function toast(message) {
+      const el = document.getElementById("toast");
+      el.textContent = message;
+      el.classList.add("show");
+      window.clearTimeout(toast.timer);
+      toast.timer = window.setTimeout(() => el.classList.remove("show"), 2400);
+    }
+
+    function diaperById(id) {
+      return state.diapers.find(d => d.id === id);
+    }
+
+    function diaperName(id) {
+      const d = diaperById(id);
+      return d ? `${d.brand} ${d.style} (${d.size})` : "No diaper selected";
+    }
+
+    function logTimestamp(log) {
+      return `${log.date || ""}T${log.time || "00:00"}`;
+    }
+
+    function formatTime(time) {
+      if (!time) return "No time";
+      const [hourText, minute = "00"] = time.split(":");
+      let hour = Number(hourText);
+      if (!Number.isFinite(hour)) return time;
+      const suffix = hour >= 12 ? "PM" : "AM";
+      hour = hour % 12 || 12;
+      return `${hour}:${minute} ${suffix}`;
+    }
+
+    function timeBucket(log) {
+      if (log.sleep || log.nightAccident || log.leakedInBed) return "Overnight";
+      const hour = Number((log.time || "12:00").slice(0, 2));
+      if (hour < 5) return "Overnight";
+      if (hour < 12) return "Morning";
+      if (hour < 17) return "Afternoon";
+      if (hour < 21) return "Evening";
+      return "Night";
+    }
+
+    function allExpenseRows() {
+      const diaperPurchases = state.purchases.map(p => {
+        const d = diaperById(p.diaperId);
+        return {
+          id: p.id,
+          date: p.date,
+          category: "Diapers",
+          brand: d?.brand || "Unknown",
+          item: d ? d.style : "Diaper case",
+          amount: Number(p.total || 0),
+          source: "purchase"
+        };
+      });
+      return [...diaperPurchases, ...state.expenses.map(e => ({ ...e, source: "expense" }))];
+    }
+
+    function totals() {
+      const totalStock = state.diapers.reduce((sum, d) => sum + safeNumber(d.count), 0);
+      const lowStock = state.diapers.filter(d => safeNumber(d.count) <= safeNumber(d.lowStock)).length;
+      const wet = state.logs.filter(l => l.event === "wet" || l.wokeWet).length;
+      const mess = state.logs.filter(l => l.event === "mess").length;
+      const sleepWet = state.logs.filter(l => l.sleep && (l.event === "wet" || l.wokeWet)).length;
+      const sleepMess = state.logs.filter(l => l.sleep && l.event === "mess").length;
+      const wokeDry = state.logs.filter(l => l.wokeDry || l.event === "dry").length;
+      const dayEvents = state.logs.filter(l => l.daytime).length;
+      const nightAccidents = state.logs.filter(l => l.nightAccident).length;
+      const dayAccidents = state.logs.filter(l => l.dayAccident || (l.accident && !l.sleep)).length;
+      const accidents = nightAccidents + dayAccidents;
+      const bedLeaks = state.logs.filter(l => l.leakedInBed || (l.leak && l.sleep)).length;
+      const awakeLeaks = state.logs.filter(l => l.leakedWhileAwake || (l.leak && !l.sleep)).length;
+      const leaks = bedLeaks + awakeLeaks;
+      const spent = allExpenseRows().reduce((sum, e) => sum + safeNumber(e.amount), 0);
+      const diaperSpent = allExpenseRows().filter(e => e.category === "Diapers").reduce((sum, e) => sum + safeNumber(e.amount), 0);
+      const supplySpent = spent - diaperSpent;
+      return { totalStock, lowStock, wet, mess, sleepWet, sleepMess, wokeDry, dayEvents, nightAccidents, dayAccidents, accidents, bedLeaks, awakeLeaks, leaks, spent, diaperSpent, supplySpent };
+    }
+
+    function setActive(tab) {
+      activeTab = tab;
+      document.querySelectorAll(".section").forEach(s => s.classList.toggle("active", s.id === tab));
+      document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+      const label = tabs.find(t => t[0] === tab)?.[1] || "Dashboard";
+      document.getElementById("pageTitle").textContent = label;
+      const sub = {
+        dashboard: "A complete local tracker for diaper stock, daily events, sleep trends, and supply spending.",
+        log: "Save wet, messed, or dry events with sleep, daytime, leak, and accident subcategories.",
+        inventory: "Manage diaper styles, case purchases, stock counts, and low-stock warnings.",
+        calendar: "Review each month and add logs directly from a selected day.",
+        trends: "See patterns across wet, mess, sleep, daytime, accident, leak, and dry data.",
+        expenses: "Track diaper costs, supply costs, totals by brand, and totals by item type.",
+        settings: "Export, import, reset, and tune privacy display settings."
+      };
+      document.getElementById("pageSub").textContent = sub[tab] || "";
+      render();
+    }
+
+    function renderTabs() {
+      const html = tabs.map(([id, label, icon]) => `<button class="tab ${id === activeTab ? "active" : ""}" data-tab="${id}"><span class="ico">${icon}</span><span>${label}</span></button>`).join("");
+      document.getElementById("desktopTabs").innerHTML = html;
+      document.getElementById("mobileTabs").innerHTML = html;
+      document.querySelectorAll("[data-tab]").forEach(btn => btn.addEventListener("click", () => setActive(btn.dataset.tab)));
+      document.querySelectorAll("[data-goto]").forEach(btn => btn.addEventListener("click", () => setActive(btn.dataset.goto)));
+    }
+
+    function statCard(title, value, sub, cls) {
+      const display = state.privateMode && title.toLowerCase().includes("spent") ? "$--.--" : value;
+      return `<article class="card stat ${cls}"><div class="label">${title}</div><div class="value">${display}</div><div class="sub">${sub}</div></article>`;
+    }
+
+    function renderDashboard() {
+      const t = totals();
+      document.getElementById("dashboard").innerHTML = `
+        <figure class="cover-image">
+          <img src="assets/app-cover-stroller.png" alt="Little fox sitting in a stroller" />
+        </figure>
+        <div class="grid stats">
+          ${statCard("Diapers in Stock", t.totalStock, `${state.diapers.length} saved styles, ${t.lowStock} low`, "wet")}
+          ${statCard("Wet Events", t.wet, `${t.leaks} leaks and ${t.accidents} accidents`, "mess")}
+          ${statCard("Sleep Wet", t.sleepWet, `${t.wokeDry} dry mornings`, "sleep")}
+          ${statCard("Total Spent", money(t.spent), `${money(t.diaperSpent)} diapers`, "money")}
+        </div>
+        <div class="grid two" style="margin-top:14px">
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Recent Activity</h3><p>Newest saved logs.</p></div><button class="btn secondary" data-goto="log">Add Log</button></div>
+            <div class="list">${renderLogList(state.logs.slice(0, 6))}</div>
+          </div></article>
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Low Stock Watch</h3><p>Restock before counts hit zero.</p></div><button class="btn secondary" data-goto="inventory">Inventory</button></div>
+            <div class="list">${state.diapers.map(renderDiaperStockItem).join("")}</div>
+          </div></article>
+        </div>
+        <div class="grid half" style="margin-top:14px">
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>30-Day Event Trend</h3><p>Wet, messed, leaks, accidents, daytime, and dry events.</p></div></div><canvas id="dashboardTrend"></canvas><div class="chart-legend">${legendHtml(["wet","mess","leak","accident","daytime","dry"])}</div></div></article>
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Spending by Category</h3><p>Diapers and supplies together.</p></div></div><canvas id="dashboardExpenses"></canvas></div></article>
+        </div>
+      `;
+      bindGoto();
+      drawLineChart("dashboardTrend", trendBuckets(30), ["wet", "mess", "leak", "accident", "daytime", "dry"]);
+      drawBarChart("dashboardExpenses", groupBy(allExpenseRows(), "category", "amount"), "name", "value", { moneyAxis: true });
+    }
+
+    function renderDiaperStockItem(item) {
+      const ratio = Math.min(100, Math.round((safeNumber(item.count) / Math.max(1, safeNumber(item.perCase))) * 100));
+      const low = safeNumber(item.count) <= safeNumber(item.lowStock);
+      return `
+        <div class="item">
+          <div class="item-head">
+            <div><h4>${escapeHtml(item.brand)} ${escapeHtml(item.style)}</h4><p>${escapeHtml(item.size)} size</p></div>
+            <div><strong style="font-size:22px;color:${low ? "var(--danger)" : "var(--ink)"}">${item.count}</strong><p>left</p></div>
+          </div>
+          <div class="stockbar ${low ? "low" : ""}"><span style="width:${ratio}%"></span></div>
+          <div class="pill-row"><span class="pill">${item.perCase} per case</span><span class="pill">${money(item.casePrice)} case</span><span class="pill ${low ? "alert" : ""}">warn at ${item.lowStock}</span></div>
+        </div>
+      `;
+    }
+
+    function renderLogList(logs) {
+      if (!logs.length) return `<div class="empty">No logs yet.</div>`;
+      return logs.map(log => {
+        const meta = eventMeta[log.event] || eventMeta.wet;
+        return `
+          <div class="item">
+            <div class="item-head">
+              <div><h4>${escapeHtml(meta.label)} on ${formatDate(log.date)} at ${formatTime(log.time)}</h4><p>${escapeHtml(diaperName(log.diaperId))}</p></div>
+              <button class="btn secondary" data-edit-log="${log.id}">Edit</button>
+            </div>
+            <div class="pill-row">
+              <span class="pill ${meta.cls}">${escapeHtml(meta.label)}</span>
+              <span class="pill">${timeBucket(log)}</span>
+              ${log.sleep ? `<span class="pill sleep">while sleeping</span>` : ""}
+              ${log.daytime ? `<span class="pill dry">daytime</span>` : ""}
+              ${log.leakedInBed || (log.leak && log.sleep) ? `<span class="pill wet">leaked in bed</span>` : ""}
+              ${log.leakedWhileAwake || (log.leak && !log.sleep) ? `<span class="pill wet">leaked while awake</span>` : ""}
+              ${log.nightAccident ? `<span class="pill alert">night accident</span>` : ""}
+              ${log.dayAccident || (log.accident && !log.sleep) ? `<span class="pill alert">day accident</span>` : ""}
+            </div>
+            ${log.notes ? `<p>${escapeHtml(log.notes)}</p>` : ""}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderLog() {
+      document.getElementById("log").innerHTML = `
+        <div class="grid two">
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Add Daily Log</h3><p>One saved wet or messed log subtracts one diaper from stock.</p></div></div>
+            ${logFormHtml({ date: todayIso(), time: currentTime(), diaperId: state.diapers[0]?.id || "", event: "wet", sleep: false, leakedInBed: false, leakedWhileAwake: false, daytime: false, nightAccident: false, dayAccident: false, notes: "" }, "newLogForm")}
+          </div></article>
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>All Logs</h3><p>${state.logs.length} saved entries.</p></div><button class="btn secondary" id="clearLogsBtn">Clear Logs</button></div>
+            <div class="list">${renderLogList([...state.logs].sort((a,b) => logTimestamp(b).localeCompare(logTimestamp(a))))}</div>
+          </div></article>
+        </div>
+      `;
+      bindLogForm("newLogForm");
+      bindEditButtons();
+      document.getElementById("clearLogsBtn").addEventListener("click", () => {
+        if (confirm("Clear all log entries? Inventory counts will not be changed.")) {
+          state.logs = [];
+          saveState();
+          render();
+          toast("Logs cleared.");
+        }
+      });
+    }
+
+    function logFormHtml(log, formId) {
+      return `
+        <form id="${formId}" class="grid" autocomplete="off">
+          <div class="form-grid">
+            <label>Date<input name="date" type="date" value="${escapeAttr(log.date)}" required></label>
+            <label>Time<input name="time" type="time" value="${escapeAttr(log.time || currentTime())}" required></label>
+            <label>Diaper Used<select name="diaperId" required>${state.diapers.map(d => `<option value="${d.id}" ${d.id === log.diaperId ? "selected" : ""}>${escapeHtml(d.brand)} ${escapeHtml(d.style)} - ${d.count} left</option>`).join("")}</select></label>
+            <div class="field-full">
+              <label>What happened?</label>
+              <div class="event-grid">
+                ${Object.entries(eventMeta).map(([key, meta]) => `<button type="button" class="event-btn ${log.event === key ? "active" : ""}" data-event="${key}">${escapeHtml(meta.label)}</button>`).join("")}
+              </div>
+              <input name="event" type="hidden" value="${escapeAttr(log.event)}">
+            </div>
+            <div class="field-full check-row">
+              ${checkHtml("sleep", "While sleeping", log.sleep)}
+              ${checkHtml("leakedInBed", "Leaked in bed", log.leakedInBed || (log.leak && log.sleep))}
+              ${checkHtml("leakedWhileAwake", "Leaked while awake", log.leakedWhileAwake || (log.leak && !log.sleep))}
+              ${checkHtml("daytime", "Daytime", log.daytime)}
+              ${checkHtml("nightAccident", "Night accident", log.nightAccident)}
+              ${checkHtml("dayAccident", "Day accident", log.dayAccident || (log.accident && !log.sleep))}
+            </div>
+            <label class="field-full">Notes<textarea name="notes" placeholder="Optional note">${escapeHtml(log.notes || "")}</textarea></label>
+          </div>
+          <button class="btn fox" type="submit">Save Log</button>
+        </form>
+      `;
+    }
+
+    function checkHtml(name, label, checked) {
+      return `<label class="check"><input type="checkbox" name="${name}" ${checked ? "checked" : ""}>${label}</label>`;
+    }
+
+    function bindLogForm(formId, editId = null) {
+      const form = document.getElementById(formId);
+      form.querySelectorAll("[data-event]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          form.querySelector("[name=event]").value = btn.dataset.event;
+          form.querySelectorAll("[data-event]").forEach(b => b.classList.toggle("active", b === btn));
+        });
+      });
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(form);
+        const log = {
+          id: editId || uid(),
+          date: data.get("date"),
+          time: data.get("time"),
+          diaperId: data.get("diaperId"),
+          event: data.get("event"),
+          sleep: data.has("sleep"),
+          leakedInBed: data.has("leakedInBed"),
+          leakedWhileAwake: data.has("leakedWhileAwake"),
+          daytime: data.has("daytime"),
+          nightAccident: data.has("nightAccident"),
+          dayAccident: data.has("dayAccident"),
+          notes: data.get("notes").trim()
+        };
+        if (editId) {
+          state.logs = state.logs.map(l => l.id === editId ? log : l);
+          closeModal();
+          toast("Log updated.");
+        } else {
+          state.logs = [log, ...state.logs];
+          if (log.event === "wet" || log.event === "mess") {
+            state.diapers = state.diapers.map(d => d.id === log.diaperId ? { ...d, count: Math.max(0, safeNumber(d.count) - 1) } : d);
+          }
+          form.reset();
+          form.querySelector("[name=date]").value = todayIso();
+          form.querySelector("[name=time]").value = currentTime();
+          form.querySelector("[name=event]").value = "wet";
+          form.querySelectorAll("[data-event]").forEach(b => b.classList.toggle("active", b.dataset.event === "wet"));
+          toast("Log saved.");
+        }
+        saveState();
+        render();
+      });
+    }
+
+    function renderInventory() {
+      const search = state.filters.inventorySearch.toLowerCase();
+      const filtered = state.diapers.filter(d => `${d.brand} ${d.style} ${d.size}`.toLowerCase().includes(search));
+      document.getElementById("inventory").innerHTML = `
+        <div class="grid two">
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Add Case Purchase</h3><p>Select a brand/style and enter cases bought.</p></div></div>
+            <form id="caseForm" class="grid">
+              <label>Brand and diaper<select name="diaperId">${state.diapers.map(d => `<option value="${d.id}">${escapeHtml(d.brand)} ${escapeHtml(d.style)} (${d.perCase}/case)</option>`).join("")}</select></label>
+              <div class="form-grid">
+                <label>Cases bought<input name="cases" type="number" min="1" step="1" value="1"></label>
+                <label>Price per case<input name="pricePerCase" type="number" min="0" step="0.01" value="${state.diapers[0]?.casePrice || 0}"></label>
+              </div>
+              <button class="btn fox" type="submit">Add Case to Stock</button>
+            </form>
+            <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+            <div class="card-title"><div><h3>Add Diaper Style</h3><p>Create a brand/style before buying cases.</p></div></div>
+            <form id="diaperForm" class="grid">
+              <div class="form-grid">
+                <label>Brand<input name="brand" required placeholder="Brand"></label>
+                <label>Style<input name="style" required placeholder="Diaper style"></label>
+                <label>Size<input name="size" required placeholder="Medium, Large, XL"></label>
+                <label>Current count<input name="count" type="number" min="0" step="1" value="0"></label>
+                <label>Diapers per case<input name="perCase" type="number" min="1" step="1" value="40"></label>
+                <label>Default case price<input name="casePrice" type="number" min="0" step="0.01" value="0"></label>
+                <label>Low-stock warning<input name="lowStock" type="number" min="0" step="1" value="10"></label>
+              </div>
+              <button class="btn sky" type="submit">Save Diaper Style</button>
+            </form>
+          </div></article>
+          <article class="card"><div class="card-body">
+            <div class="card-title">
+              <div><h3>All Diapers</h3><p>${filtered.length} shown from ${state.diapers.length} saved styles.</p></div>
+              <div class="toolbar"><input id="inventorySearch" placeholder="Search brand, style, or size" value="${escapeAttr(state.filters.inventorySearch)}"></div>
+            </div>
+            <div class="list">${filtered.length ? filtered.map(renderDiaperManageItem).join("") : `<div class="empty">No diapers match that search.</div>`}</div>
+          </div></article>
+        </div>
+        <article class="card" style="margin-top:14px"><div class="card-body">
+          <div class="card-title"><div><h3>Purchase History</h3><p>Case purchases automatically count as diaper expenses.</p></div></div>
+          <div class="list">${state.purchases.length ? [...state.purchases].sort((a,b) => b.date.localeCompare(a.date)).map(renderPurchaseItem).join("") : `<div class="empty">No purchases yet.</div>`}</div>
+        </div></article>
+      `;
+      bindInventory();
+    }
+
+    function renderDiaperManageItem(d) {
+      return `
+        <div class="item">
+          <div class="item-head">
+            <div><h4>${escapeHtml(d.brand)} ${escapeHtml(d.style)}</h4><p>${escapeHtml(d.size)} size</p></div>
+            <div class="toolbar"><button class="btn secondary" data-edit-diaper="${d.id}">Edit</button><button class="btn secondary" data-adjust-diaper="${d.id}">Adjust</button></div>
+          </div>
+          ${renderDiaperStockItem(d)}
+        </div>
+      `;
+    }
+
+    function renderPurchaseItem(p) {
+      const d = diaperById(p.diaperId);
+      return `
+        <div class="item">
+          <div class="item-head">
+            <div><h4>${escapeHtml(d ? `${d.brand} ${d.style}` : "Deleted diaper")}</h4><p>${formatDate(p.date)} - ${p.cases} case(s), ${p.units} diapers</p></div>
+            <strong>${state.privateMode ? "$--.--" : money(p.total)}</strong>
+          </div>
+        </div>
+      `;
+    }
+
+    function bindInventory() {
+      const caseForm = document.getElementById("caseForm");
+      const diaperSelect = caseForm.querySelector("[name=diaperId]");
+      diaperSelect.addEventListener("change", () => {
+        caseForm.querySelector("[name=pricePerCase]").value = diaperById(diaperSelect.value)?.casePrice || 0;
+      });
+      caseForm.addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(caseForm);
+        const diaperId = data.get("diaperId");
+        const d = diaperById(diaperId);
+        if (!d) return;
+        const cases = Math.max(1, Math.floor(safeNumber(data.get("cases")) || 1));
+        const pricePerCase = safeNumber(data.get("pricePerCase"));
+        const units = cases * safeNumber(d.perCase);
+        state.diapers = state.diapers.map(item => item.id === diaperId ? { ...item, count: safeNumber(item.count) + units, casePrice: pricePerCase } : item);
+        state.purchases = [{ id: uid(), date: todayIso(), diaperId, cases, units, pricePerCase, total: cases * pricePerCase }, ...state.purchases];
+        saveState();
+        render();
+        toast("Case purchase added.");
+      });
+
+      document.getElementById("diaperForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        state.diapers = [{
+          id: uid(),
+          brand: data.get("brand").trim(),
+          style: data.get("style").trim(),
+          size: data.get("size").trim(),
+          count: Math.max(0, Math.floor(safeNumber(data.get("count")))),
+          perCase: Math.max(1, Math.floor(safeNumber(data.get("perCase")) || 1)),
+          casePrice: safeNumber(data.get("casePrice")),
+          lowStock: Math.max(0, Math.floor(safeNumber(data.get("lowStock"))))
+        }, ...state.diapers];
+        saveState();
+        render();
+        toast("Diaper style saved.");
+      });
+
+      document.getElementById("inventorySearch").addEventListener("input", event => {
+        state.filters.inventorySearch = event.target.value;
+        saveState();
+        renderInventory();
+      });
+
+      document.querySelectorAll("[data-edit-diaper]").forEach(btn => btn.addEventListener("click", () => openDiaperEditor(btn.dataset.editDiaper)));
+      document.querySelectorAll("[data-adjust-diaper]").forEach(btn => btn.addEventListener("click", () => openStockAdjuster(btn.dataset.adjustDiaper)));
+    }
+
+    function renderCalendar() {
+      const [year, month] = state.calendarCursor.split("-").map(Number);
+      const first = new Date(year, month - 1, 1);
+      const start = new Date(first);
+      start.setDate(first.getDate() - first.getDay());
+      const monthLabel = first.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+      const days = Array.from({ length: 42 }, (_, i) => {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        return d;
+      });
+      document.getElementById("calendar").innerHTML = `
+        <article class="card"><div class="card-body">
+          <div class="calendar-head">
+            <div><h3 style="margin:0">${monthLabel}</h3><p style="margin:4px 0 0;color:var(--muted)">Click any day to add a log for that date.</p></div>
+            <div class="toolbar"><button class="btn secondary" id="prevMonth">Previous</button><button class="btn secondary" id="todayMonth">Today</button><button class="btn secondary" id="nextMonth">Next</button></div>
+          </div>
+          <div class="calendar-grid">${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => `<div class="weekday">${d}</div>`).join("")}</div>
+          <div class="calendar-grid" style="margin-top:8px">${days.map(d => renderDay(d, month)).join("")}</div>
+        </div></article>
+      `;
+      document.getElementById("prevMonth").addEventListener("click", () => changeMonth(-1));
+      document.getElementById("nextMonth").addEventListener("click", () => changeMonth(1));
+      document.getElementById("todayMonth").addEventListener("click", () => { state.calendarCursor = todayIso().slice(0, 7); saveState(); render(); });
+      document.querySelectorAll("[data-day]").forEach(btn => btn.addEventListener("click", () => openDayLog(btn.dataset.day)));
+    }
+
+    function renderDay(date, visibleMonth) {
+      const iso = date.toISOString().slice(0, 10);
+      const entries = state.logs.filter(l => l.date === iso);
+      const out = date.getMonth() + 1 !== visibleMonth;
+      return `
+        <div class="day ${out ? "out" : ""} ${iso === todayIso() ? "today" : ""}">
+          <button data-day="${iso}">${date.getDate()}</button>
+          <div class="day-events">
+            ${entries.slice(0, 4).map(l => {
+              const cls = l.nightAccident || l.dayAccident || l.accident ? "alert" : l.leakedInBed || l.leakedWhileAwake || l.leak ? "wet" : eventMeta[l.event]?.cls || "wet";
+              const label = `${l.time || "--:--"} ${l.sleep && l.event === "wet" ? "sleep wet" : l.daytime ? "daytime" : eventMeta[l.event]?.label || l.event}`;
+              return `<span class="pill ${cls}">${escapeHtml(label)}</span>`;
+            }).join("")}
+            ${entries.length > 4 ? `<span class="pill">+${entries.length - 4}</span>` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    function changeMonth(delta) {
+      const [year, month] = state.calendarCursor.split("-").map(Number);
+      const next = new Date(year, month - 1 + delta, 1);
+      state.calendarCursor = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+      saveState();
+      render();
+    }
+
+    function renderTrends() {
+      const range = safeNumber(state.filters.trendRange || 30);
+      const t = totals();
+      document.getElementById("trends").innerHTML = `
+        <div class="grid stats">
+          ${statCard("Sleep Wet", t.sleepWet, "wet while sleeping", "sleep")}
+          ${statCard("Sleep Messed", t.sleepMess, "messed while sleeping", "mess")}
+          ${statCard("Daytime", t.dayEvents, "marked daytime", "money")}
+          ${statCard("Leaks", t.leaks, `${t.bedLeaks} bed, ${t.awakeLeaks} awake`, "wet")}
+        </div>
+        <div class="grid half" style="margin-top:14px">
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Event Trend</h3><p>Daily counts across selected range.</p></div><select id="trendRange"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div><canvas id="trendChart"></canvas><div class="chart-legend">${legendHtml(["wet","mess","leak","accident","daytime","dry"])}</div></div></article>
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Sleep and Day Summary</h3><p>Sleep, daytime, leak, and accident breakdown.</p></div></div><canvas id="sleepChart"></canvas></div></article>
+        </div>
+        <div class="grid half" style="margin-top:14px">
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Diaper Usage</h3><p>Which styles are used most often.</p></div></div><canvas id="usageChart"></canvas></div></article>
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Reliability Watch</h3><p>Leaks and accidents by diaper style.</p></div></div><div class="list">${renderReliabilityList()}</div></div></article>
+        </div>
+        <div class="grid half" style="margin-top:14px">
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Usage by Time of Day</h3><p>Morning, afternoon, evening, night, and overnight logs.</p></div></div><canvas id="timeOfDayChart"></canvas></div></article>
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Diaper Time Breakdown</h3><p>Which diaper styles show up in each part of the day.</p></div></div><div class="list">${renderDiaperTimeList()}</div></div></article>
+        </div>
+      `;
+      document.getElementById("trendRange").value = String(range);
+      document.getElementById("trendRange").addEventListener("change", e => {
+        state.filters.trendRange = e.target.value;
+        saveState();
+        renderTrends();
+      });
+      drawLineChart("trendChart", trendBuckets(range), ["wet", "mess", "leak", "accident", "daytime", "dry"]);
+      drawBarChart("sleepChart", [
+        { name: "Sleep wet", value: t.sleepWet },
+        { name: "Sleep messed", value: t.sleepMess },
+        { name: "Daytime", value: t.dayEvents },
+        { name: "Bed leaks", value: t.bedLeaks },
+        { name: "Awake leaks", value: t.awakeLeaks },
+        { name: "Night accidents", value: t.nightAccidents },
+        { name: "Day accidents", value: t.dayAccidents }
+      ], "name", "value");
+      drawBarChart("usageChart", groupLogsByDiaper(), "name", "value");
+      drawBarChart("timeOfDayChart", groupLogsByTimeBucket(), "name", "value");
+    }
+
+    function renderReliabilityList() {
+      const rows = state.diapers.map(d => {
+        const logs = state.logs.filter(l => l.diaperId === d.id);
+        const leaks = logs.filter(l => l.leakedInBed || l.leakedWhileAwake || l.leak).length;
+        const accidents = logs.filter(l => l.nightAccident || l.dayAccident || l.accident).length;
+        return { d, logs: logs.length, leaks, accidents };
+      }).sort((a,b) => (b.leaks + b.accidents) - (a.leaks + a.accidents));
+      if (!rows.length) return `<div class="empty">Add diapers and logs to see reliability.</div>`;
+      return rows.map(r => `
+        <div class="item">
+          <div class="item-head"><div><h4>${escapeHtml(r.d.brand)} ${escapeHtml(r.d.style)}</h4><p>${r.logs} logs recorded</p></div><strong>${r.leaks + r.accidents}</strong></div>
+          <div class="pill-row"><span class="pill wet">${r.leaks} leaks</span><span class="pill alert">${r.accidents} accidents</span></div>
+        </div>
+      `).join("");
+    }
+
+    function renderExpenses() {
+      const rows = allExpenseRows().sort((a,b) => b.date.localeCompare(a.date));
+      const byBrand = groupBy(rows, "brand", "amount");
+      const byCategory = groupBy(rows, "category", "amount");
+      const byStyle = groupBy(rows.map(e => ({ ...e, style: e.category === "Diapers" ? e.item : e.category })), "style", "amount");
+      const t = totals();
+      document.getElementById("expenses").innerHTML = `
+        <div class="grid stats">
+          ${statCard("Total Spent", money(t.spent), "all tracked costs", "money")}
+          ${statCard("Diaper Expense", money(t.diaperSpent), "case purchases", "wet")}
+          ${statCard("Supply Expense", money(t.supplySpent), "powder, pads, more", "mess")}
+          ${statCard("Expense Rows", rows.length, "purchases plus supplies", "sleep")}
+        </div>
+        <div class="grid two" style="margin-top:14px">
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Add Supply Expense</h3><p>Powder, pads, wipes, creams, bags, and anything else.</p></div></div>
+            <form id="expenseForm" class="grid">
+              <div class="form-grid">
+                <label>Date<input name="date" type="date" value="${todayIso()}" required></label>
+                <label>Category<select name="category">${["Baby powder", "Changing pads", "Wipes", "Cream", "Bags", "Clothing", "Other"].map(c => `<option>${c}</option>`).join("")}</select></label>
+                <label>Brand<input name="brand" placeholder="Brand or store"></label>
+                <label>Item<input name="item" required placeholder="Item name"></label>
+                <label class="field-full">Amount<input name="amount" type="number" min="0" step="0.01" required placeholder="0.00"></label>
+              </div>
+              <button class="btn fox" type="submit">Save Expense</button>
+            </form>
+          </div></article>
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Expense Charts</h3><p>Totals by brand and category.</p></div></div>
+            <canvas id="expenseBrandChart"></canvas>
+            <canvas id="expenseCategoryChart" style="margin-top:16px"></canvas>
+          </div></article>
+        </div>
+        <div class="grid half" style="margin-top:14px">
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>By Diaper Style or Type</h3><p>Style totals plus supply categories.</p></div></div><div class="list">${byStyle.map(renderMoneyRow).join("")}</div></div></article>
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Expense List</h3><p>Newest expenses first.</p></div></div><div class="list">${rows.map(renderExpenseItem).join("") || `<div class="empty">No expenses yet.</div>`}</div></div></article>
+        </div>
+      `;
+      document.getElementById("expenseForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        state.expenses = [{
+          id: uid(),
+          date: data.get("date"),
+          category: data.get("category"),
+          brand: data.get("brand").trim() || "Other",
+          item: data.get("item").trim(),
+          amount: safeNumber(data.get("amount"))
+        }, ...state.expenses];
+        saveState();
+        render();
+        toast("Expense saved.");
+      });
+      drawBarChart("expenseBrandChart", byBrand, "name", "value", { moneyAxis: true });
+      drawBarChart("expenseCategoryChart", byCategory, "name", "value", { moneyAxis: true });
+    }
+
+    function renderMoneyRow(row) {
+      return `<div class="item"><div class="item-head"><div><h4>${escapeHtml(row.name)}</h4><p>Tracked total</p></div><strong>${state.privateMode ? "$--.--" : money(row.value)}</strong></div></div>`;
+    }
+
+    function renderExpenseItem(e) {
+      return `
+        <div class="item">
+          <div class="item-head">
+            <div><h4>${escapeHtml(e.item)}</h4><p>${formatDate(e.date)} - ${escapeHtml(e.category)} - ${escapeHtml(e.brand || "Other")}</p></div>
+            <strong>${state.privateMode ? "$--.--" : money(e.amount)}</strong>
+          </div>
+          ${e.source === "expense" ? `<button class="btn secondary" data-delete-expense="${e.id}">Delete</button>` : `<span class="pill">case purchase</span>`}
+        </div>
+      `;
+    }
+
+    function renderSettings() {
+      document.getElementById("settings").innerHTML = `
+        <div class="grid two">
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Privacy and Backups</h3><p>Data is stored locally in this browser.</p></div></div>
+            <div class="list">
+              <label class="check"><input id="privateMode" type="checkbox" ${state.privateMode ? "checked" : ""}>Private mode hides dollar amounts on screen</label>
+              <button class="btn fox" id="exportFull">Export Full Backup</button>
+              <label>Import Backup<input id="importFile" type="file" accept="application/json"></label>
+              <button class="btn danger" id="resetApp">Reset App Data</button>
+            </div>
+          </div></article>
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Storage Plan</h3><p>What the app keeps track of.</p></div></div>
+            <div class="list">
+              <div class="item"><h4>Diaper styles</h4><p>Brand, style, size, count, case quantity, price, and low-stock warning.</p></div>
+              <div class="item"><h4>Case purchases</h4><p>Date, cases, units, price per case, and automatic diaper expense totals.</p></div>
+              <div class="item"><h4>Daily logs</h4><p>Date, time, wet, messed, dry, while sleeping, leaked in bed, leaked while awake, daytime, night accident, day accident, diaper used, and notes.</p></div>
+              <div class="item"><h4>Supplies</h4><p>Baby powder, changing pads, wipes, creams, bags, clothing, and other expenses.</p></div>
+            </div>
+          </div></article>
+        </div>
+      `;
+      document.getElementById("privateMode").addEventListener("change", e => {
+        state.privateMode = e.target.checked;
+        saveState();
+        render();
+      });
+      document.getElementById("exportFull").addEventListener("click", exportBackup);
+      document.getElementById("importFile").addEventListener("change", importBackup);
+      document.getElementById("resetApp").addEventListener("click", () => {
+        if (confirm("Reset all Little Fox Training data?")) {
+          state = structuredClone(defaultState);
+          saveState();
+          render();
+          toast("App data reset.");
+        }
+      });
+    }
+
+    function render() {
+      renderTabs();
+      if (activeTab === "dashboard") renderDashboard();
+      if (activeTab === "log") renderLog();
+      if (activeTab === "inventory") renderInventory();
+      if (activeTab === "calendar") renderCalendar();
+      if (activeTab === "trends") renderTrends();
+      if (activeTab === "expenses") renderExpenses();
+      if (activeTab === "settings") renderSettings();
+      bindEditButtons();
+      bindExpenseDelete();
+    }
+
+    function bindGoto() {
+      document.querySelectorAll("[data-goto]").forEach(btn => btn.addEventListener("click", () => setActive(btn.dataset.goto)));
+    }
+
+    function bindEditButtons() {
+      document.querySelectorAll("[data-edit-log]").forEach(btn => btn.addEventListener("click", () => openLogEditor(btn.dataset.editLog)));
+    }
+
+    function bindExpenseDelete() {
+      document.querySelectorAll("[data-delete-expense]").forEach(btn => btn.addEventListener("click", () => {
+        state.expenses = state.expenses.filter(e => e.id !== btn.dataset.deleteExpense);
+        saveState();
+        render();
+        toast("Expense deleted.");
+      }));
+    }
+
+    function openModal(title, html) {
+      document.getElementById("modalTitle").textContent = title;
+      document.getElementById("modalBody").innerHTML = html;
+      document.getElementById("modal").classList.add("active");
+    }
+
+    function closeModal() {
+      document.getElementById("modal").classList.remove("active");
+      document.getElementById("modalBody").innerHTML = "";
+    }
+
+    function openLogEditor(id) {
+      const log = state.logs.find(l => l.id === id);
+      if (!log) return;
+      openModal("Edit Log", logFormHtml(log, "editLogForm") + `<button class="btn danger" id="deleteLogBtn" style="margin-top:12px">Delete Log</button>`);
+      bindLogForm("editLogForm", id);
+      document.getElementById("deleteLogBtn").addEventListener("click", () => {
+        state.logs = state.logs.filter(l => l.id !== id);
+        saveState();
+        closeModal();
+        render();
+        toast("Log deleted.");
+      });
+    }
+
+    function openDayLog(date) {
+      setActive("log");
+      window.setTimeout(() => {
+        const form = document.getElementById("newLogForm");
+        if (form) form.querySelector("[name=date]").value = date;
+      }, 0);
+    }
+
+    function openDiaperEditor(id) {
+      const d = diaperById(id);
+      if (!d) return;
+      openModal("Edit Diaper Style", `
+        <form id="editDiaperForm" class="grid">
+          <div class="form-grid">
+            <label>Brand<input name="brand" required value="${escapeAttr(d.brand)}"></label>
+            <label>Style<input name="style" required value="${escapeAttr(d.style)}"></label>
+            <label>Size<input name="size" required value="${escapeAttr(d.size)}"></label>
+            <label>Count<input name="count" type="number" min="0" step="1" value="${d.count}"></label>
+            <label>Diapers per case<input name="perCase" type="number" min="1" step="1" value="${d.perCase}"></label>
+            <label>Case price<input name="casePrice" type="number" min="0" step="0.01" value="${d.casePrice}"></label>
+            <label>Low warning<input name="lowStock" type="number" min="0" step="1" value="${d.lowStock}"></label>
+          </div>
+          <button class="btn fox" type="submit">Save Changes</button>
+          <button class="btn danger" id="deleteDiaperBtn" type="button">Delete Diaper Style</button>
+        </form>
+      `);
+      document.getElementById("editDiaperForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        state.diapers = state.diapers.map(item => item.id === id ? {
+          ...item,
+          brand: data.get("brand").trim(),
+          style: data.get("style").trim(),
+          size: data.get("size").trim(),
+          count: Math.max(0, Math.floor(safeNumber(data.get("count")))),
+          perCase: Math.max(1, Math.floor(safeNumber(data.get("perCase")) || 1)),
+          casePrice: safeNumber(data.get("casePrice")),
+          lowStock: Math.max(0, Math.floor(safeNumber(data.get("lowStock"))))
+        } : item);
+        saveState();
+        closeModal();
+        render();
+        toast("Diaper updated.");
+      });
+      document.getElementById("deleteDiaperBtn").addEventListener("click", () => {
+        if (!confirm("Delete this diaper style? Existing logs will keep the old ID but show no diaper selected.")) return;
+        state.diapers = state.diapers.filter(item => item.id !== id);
+        saveState();
+        closeModal();
+        render();
+        toast("Diaper style deleted.");
+      });
+    }
+
+    function openStockAdjuster(id) {
+      const d = diaperById(id);
+      if (!d) return;
+      openModal("Adjust Stock", `
+        <form id="adjustStockForm" class="grid">
+          <p style="margin:0;color:var(--muted)">Current stock for <strong>${escapeHtml(d.brand)} ${escapeHtml(d.style)}</strong> is ${d.count}.</p>
+          <label>New stock count<input name="count" type="number" min="0" step="1" value="${d.count}"></label>
+          <button class="btn fox" type="submit">Save Count</button>
+        </form>
+      `);
+      document.getElementById("adjustStockForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const count = Math.max(0, Math.floor(safeNumber(new FormData(event.currentTarget).get("count"))));
+        state.diapers = state.diapers.map(item => item.id === id ? { ...item, count } : item);
+        saveState();
+        closeModal();
+        render();
+        toast("Stock adjusted.");
+      });
+    }
+
+    function exportBackup() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `little-fox-training-backup-${todayIso()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("Backup exported.");
+    }
+
+    function importBackup(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const next = JSON.parse(reader.result);
+          if (!next.diapers || !next.logs || !next.expenses) throw new Error("Invalid backup");
+          state = { ...structuredClone(defaultState), ...next, filters: { ...defaultState.filters, ...(next.filters || {}) } };
+          saveState();
+          render();
+          toast("Backup imported.");
+        } catch {
+          toast("That backup file could not be imported.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function groupBy(rows, key, valueKey) {
+      const map = new Map();
+      rows.forEach(row => {
+        const name = row[key] || "Other";
+        map.set(name, (map.get(name) || 0) + safeNumber(row[valueKey]));
+      });
+      return [...map.entries()].map(([name, value]) => ({ name, value: Number(value.toFixed(2)) })).sort((a,b) => b.value - a.value);
+    }
+
+    function groupLogsByDiaper() {
+      const map = new Map();
+      state.logs.forEach(log => map.set(diaperName(log.diaperId), (map.get(diaperName(log.diaperId)) || 0) + 1));
+      return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
+    }
+
+    function groupLogsByTimeBucket() {
+      const order = ["Morning", "Afternoon", "Evening", "Night", "Overnight"];
+      const map = Object.fromEntries(order.map(name => [name, 0]));
+      state.logs.forEach(log => {
+        const bucket = timeBucket(log);
+        map[bucket] = (map[bucket] || 0) + 1;
+      });
+      return order.map(name => ({ name, value: map[name] || 0 }));
+    }
+
+    function renderDiaperTimeList() {
+      if (!state.logs.length) return `<div class="empty">Add logs to see diaper timing.</div>`;
+      const order = ["Morning", "Afternoon", "Evening", "Night", "Overnight"];
+      return state.diapers.map(diaper => {
+        const logs = state.logs.filter(log => log.diaperId === diaper.id);
+        if (!logs.length) return null;
+        const counts = Object.fromEntries(order.map(name => [name, 0]));
+        logs.forEach(log => { counts[timeBucket(log)] += 1; });
+        return `
+          <div class="item">
+            <div class="item-head"><div><h4>${escapeHtml(diaper.brand)} ${escapeHtml(diaper.style)}</h4><p>${logs.length} timed logs</p></div></div>
+            <div class="pill-row">
+              ${order.map(name => `<span class="pill">${name}: ${counts[name]}</span>`).join("")}
+            </div>
+          </div>
+        `;
+      }).filter(Boolean).join("") || `<div class="empty">No diaper usage has been logged yet.</div>`;
+    }
+
+    function trendBuckets(days) {
+      const buckets = [];
+      const end = new Date();
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(end);
+        d.setDate(end.getDate() - i);
+        const iso = d.toISOString().slice(0, 10);
+        const short = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        buckets.push({ name: short, iso, wet: 0, mess: 0, leak: 0, accident: 0, daytime: 0, dry: 0 });
+      }
+      const byIso = Object.fromEntries(buckets.map(b => [b.iso, b]));
+      state.logs.forEach(log => {
+        const bucket = byIso[log.date];
+        if (!bucket) return;
+        if (log.event === "wet" || log.wokeWet) bucket.wet += 1;
+        if (log.event === "mess") bucket.mess += 1;
+        if (log.leakedInBed || log.leakedWhileAwake || log.leak) bucket.leak += 1;
+        if (log.nightAccident || log.dayAccident || log.accident) bucket.accident += 1;
+        if (log.daytime) bucket.daytime += 1;
+        if (log.wokeDry || log.event === "dry") bucket.dry += 1;
+      });
+      return buckets;
+    }
+
+    const chartColors = {
+      wet: "#2f80a8",
+      mess: "#c8892f",
+      leak: "#5fb8d2",
+      accident: "#b94747",
+      daytime: "#697d42",
+      dry: "#3f8f73",
+      value: "#e87226"
+    };
+
+    function legendHtml(keys) {
+      return keys.map(k => `<span><i class="dot" style="background:${chartColors[k] || chartColors.value}"></i>${k}</span>`).join("");
+    }
+
+    function drawFrame(canvas) {
+      const ctx = canvas.getContext("2d");
+      const rect = canvas.getBoundingClientRect();
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * scale);
+      canvas.height = Math.floor(300 * scale);
+      ctx.scale(scale, scale);
+      ctx.clearRect(0, 0, rect.width, 300);
+      return { ctx, width: rect.width, height: 300, pad: { l: 42, r: 16, t: 18, b: 42 } };
+    }
+
+    function drawAxes(ctx, width, height, pad, max, moneyAxis = false) {
+      ctx.strokeStyle = "#d8e0ea";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#65758b";
+      ctx.font = "12px system-ui";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.t + ((height - pad.t - pad.b) * i / 4);
+        ctx.beginPath();
+        ctx.moveTo(pad.l, y);
+        ctx.lineTo(width - pad.r, y);
+        ctx.stroke();
+        const label = max - (max * i / 4);
+        ctx.fillText(moneyAxis ? `$${Math.round(label)}` : String(Math.round(label)), pad.l - 7, y);
+      }
+    }
+
+    function drawLineChart(id, rows, keys) {
+      const canvas = document.getElementById(id);
+      if (!canvas) return;
+      const { ctx, width, height, pad } = drawFrame(canvas);
+      const max = Math.max(1, ...rows.flatMap(r => keys.map(k => safeNumber(r[k]))));
+      drawAxes(ctx, width, height, pad, max);
+      const innerW = width - pad.l - pad.r;
+      const innerH = height - pad.t - pad.b;
+      keys.forEach(key => {
+        ctx.strokeStyle = chartColors[key] || chartColors.value;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        rows.forEach((row, i) => {
+          const x = pad.l + (rows.length === 1 ? innerW / 2 : innerW * i / (rows.length - 1));
+          const y = pad.t + innerH - (safeNumber(row[key]) / max) * innerH;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+      ctx.fillStyle = "#65758b";
+      ctx.font = "11px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const labelStep = Math.max(1, Math.ceil(rows.length / 6));
+      rows.forEach((row, i) => {
+        if (i % labelStep !== 0 && i !== rows.length - 1) return;
+        const x = pad.l + (rows.length === 1 ? innerW / 2 : innerW * i / (rows.length - 1));
+        ctx.fillText(row.name, x, height - pad.b + 12);
+      });
+    }
+
+    function drawBarChart(id, rows, nameKey, valueKey, opts = {}) {
+      const canvas = document.getElementById(id);
+      if (!canvas) return;
+      const data = rows.slice(0, 8);
+      const { ctx, width, height, pad } = drawFrame(canvas);
+      if (!data.length) {
+        ctx.fillStyle = "#65758b";
+        ctx.textAlign = "center";
+        ctx.font = "14px system-ui";
+        ctx.fillText("No data yet", width / 2, height / 2);
+        return;
+      }
+      const max = Math.max(1, ...data.map(r => safeNumber(r[valueKey])));
+      drawAxes(ctx, width, height, pad, max, opts.moneyAxis);
+      const innerW = width - pad.l - pad.r;
+      const innerH = height - pad.t - pad.b;
+      const gap = 8;
+      const barW = Math.max(14, (innerW - gap * (data.length - 1)) / data.length);
+      data.forEach((row, i) => {
+        const value = safeNumber(row[valueKey]);
+        const x = pad.l + i * (barW + gap);
+        const h = (value / max) * innerH;
+        const y = pad.t + innerH - h;
+        ctx.fillStyle = ["#e87226", "#2f80a8", "#3f8f73", "#a34d67", "#c8892f", "#5f6f7e", "#b94747", "#697d42"][i % 8];
+        ctx.fillRect(x, y, barW, h);
+        ctx.fillStyle = "#65758b";
+        ctx.font = "11px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        const label = String(row[nameKey]).slice(0, 12);
+        ctx.fillText(label, x + barW / 2, height - pad.b + 12);
+      });
+    }
+
+    function formatDate(iso) {
+      try {
+        return new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      } catch {
+        return iso;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, "&#96;");
+    }
+
+    window.addEventListener("resize", () => {
+      if (activeTab === "dashboard" || activeTab === "trends" || activeTab === "expenses") render();
+    });
+
+    document.getElementById("closeModal").addEventListener("click", closeModal);
+    document.getElementById("modal").addEventListener("click", event => { if (event.target.id === "modal") closeModal(); });
+    document.getElementById("exportBtn").addEventListener("click", exportBackup);
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
