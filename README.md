@@ -6,6 +6,18 @@ A standalone browser app for tracking diaper inventory, daily training logs, cal
 
 Open `index.html` in a browser. No install step is required.
 
+## Streamlit Community Cloud
+
+This repo can also run on Streamlit Community Cloud using `streamlit_app.py`.
+
+1. Upload all files in this folder to GitHub.
+2. Sign in at `share.streamlit.io`.
+3. Create a new app from the GitHub repo.
+4. Use `streamlit_app.py` as the app file.
+5. Deploy.
+
+The Streamlit version wraps the same local HTML app. It still auto-saves to the browser storage on the device you use.
+
 ## Features
 
 - Dashboard with stock, wet logs, sleep wet logs, and spending totals.
