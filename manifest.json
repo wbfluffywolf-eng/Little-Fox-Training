@@ -9,13 +9,13 @@
   "theme_color": "#26313a",
   "icons": [
     {
-      "src": "assets/changing-table-fox.png",
+      "src": "assets/app-cover-stroller.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/app-cover-stroller.png",
+      "src": "assets/changing-table-fox.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any"

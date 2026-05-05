@@ -48,9 +48,16 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-      .block-container { padding: 0; max-width: none; }
-      header, footer, [data-testid="stToolbar"] { display: none; }
-      iframe { display: block; }
+      .stApp { margin: 0; padding: 0; }
+      .block-container { padding: 0 !important; max-width: none; }
+      header, footer, [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] {
+        display: none !important;
+        height: 0 !important;
+      }
+      iframe {
+        display: block;
+        border: 0;
+      }
     </style>
     """,
     unsafe_allow_html=True,

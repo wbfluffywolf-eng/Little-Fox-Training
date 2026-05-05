@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="Little Fox" />
   <title>Little Fox Training</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="assets/changing-table-fox.png" />
+  <link rel="apple-touch-icon" href="assets/app-cover-stroller.png" />
   <style>
     :root {
       color-scheme: light;
@@ -225,24 +225,6 @@
 
     .card.tight { box-shadow: none; }
     .card-body { padding: 16px; }
-
-    .cover-image {
-      margin: 0 0 14px;
-      border: 1px solid rgba(216, 224, 234, .85);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      background: #fff;
-      height: clamp(420px, 70vw, 760px);
-    }
-
-    .cover-image img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      object-position: center;
-    }
 
     .card-title {
       display: flex;
@@ -582,6 +564,7 @@
     @media (max-width: 1050px) {
       .app { grid-template-columns: 1fr; }
       .sidebar { display: none; }
+      .main { padding-top: calc(20px + env(safe-area-inset-top, 0px)); }
       .mobile-tabs {
         display: flex;
         gap: 8px;
@@ -605,8 +588,7 @@
     }
 
     @media (max-width: 720px) {
-      .main { padding: 12px; }
-      .cover-image { height: min(76vh, 620px); }
+      .main { padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px; }
       .stats, .thirds, .form-grid, .check-row, .event-grid { grid-template-columns: 1fr; }
       .calendar-grid { gap: 4px; }
       .weekday { font-size: 10px; }
@@ -863,9 +845,6 @@
     function renderDashboard() {
       const t = totals();
       document.getElementById("dashboard").innerHTML = `
-        <figure class="cover-image">
-          <img src="assets/app-cover-stroller.png" alt="Little fox sitting in a stroller" />
-        </figure>
         <div class="grid stats">
           ${statCard("Diapers in Stock", t.totalStock, `${state.diapers.length} saved styles, ${t.lowStock} low`, "wet")}
           ${statCard("Wet Events", t.wet, `${t.leaks} leaks and ${t.accidents} accidents`, "mess")}
