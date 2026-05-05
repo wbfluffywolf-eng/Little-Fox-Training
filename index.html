@@ -233,15 +233,15 @@
       box-shadow: var(--shadow);
       overflow: hidden;
       background: #fff;
-      height: clamp(240px, 34vw, 420px);
+      height: clamp(420px, 70vw, 760px);
     }
 
     .cover-image img {
       display: block;
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      object-position: center 42%;
+      object-fit: contain;
+      object-position: center;
     }
 
     .card-title {
@@ -606,7 +606,7 @@
 
     @media (max-width: 720px) {
       .main { padding: 12px; }
-      .cover-image { height: 360px; }
+      .cover-image { height: min(76vh, 620px); }
       .stats, .thirds, .form-grid, .check-row, .event-grid { grid-template-columns: 1fr; }
       .calendar-grid { gap: 4px; }
       .weekday { font-size: 10px; }
