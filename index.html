@@ -696,7 +696,6 @@
         { id: "l5", date: "2026-05-05", time: "06:55", diaperId: "d2", event: "wet", sleep: true, leakedInBed: false, leakedWhileAwake: false, daytime: false, nightAccident: false, dayAccident: false, notes: "Overnight use." }
       ],
       purchases: [
-        { id: "p1", date: "2026-04-27", diaperId: "d1", cases: 1, units: 36, pricePerCase: 119.99, total: 119.99 },
         { id: "p2", date: "2026-04-29", diaperId: "d2", cases: 1, units: 48, pricePerCase: 104.99, total: 104.99 }
       ],
       expenses: [
@@ -709,6 +708,21 @@
       calendarCursor: todayIso().slice(0, 7),
       filters: { inventorySearch: "", trendRange: "30", expenseRange: "all" },
       timing: { beforeBedStart: "19:00", beforeBedEnd: "23:00", morningStart: "05:00", morningEnd: "10:00" },
+      chartVisibility: {
+        dashboardTrend: true,
+        dashboardExpenses: true,
+        trendEvent: true,
+        trendSleepDay: true,
+        trendUsage: true,
+        trendReliability: true,
+        trendTimeOfDay: true,
+        trendDiaperTime: true,
+        trendMaterialCost: true,
+        trendClothCost: true,
+        expenseCharts: true,
+        expenseByStyle: true,
+        expenseList: true
+      },
       lastChangedTime: "",
       privateMode: false
     };
@@ -755,7 +769,9 @@
           clothUses: Array.isArray(parsed.clothUses) ? parsed.clothUses : [],
           diapers: Array.isArray(parsed.diapers) ? parsed.diapers : structuredClone(defaultState.diapers),
           expenses: Array.isArray(parsed.expenses) ? parsed.expenses : structuredClone(defaultState.expenses),
+          purchases: Array.isArray(parsed.purchases) ? parsed.purchases.filter(p => p.id !== "p1") : structuredClone(defaultState.purchases),
           timing: { ...defaultState.timing, ...(parsed.timing || {}) },
+          chartVisibility: { ...defaultState.chartVisibility, ...(parsed.chartVisibility || {}) },
           lastChangedTime: parsed.lastChangedTime || "",
           filters: { ...defaultState.filters, ...(parsed.filters || {}) }
         });
@@ -1004,6 +1020,10 @@
       return `<article class="card stat ${cls}"><div class="label">${title}</div><div class="value">${display}</div><div class="sub">${sub}</div></article>`;
     }
 
+    function visible(key) {
+      return state.chartVisibility?.[key] !== false;
+    }
+
     function renderDashboard() {
       const t = totals();
       document.getElementById("dashboard").innerHTML = `
@@ -1023,14 +1043,14 @@
             <div class="list">${state.diapers.map(renderDiaperStockItem).join("")}</div>
           </div></article>
         </div>
-        <div class="grid half" style="margin-top:14px">
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>30-Day Event Trend</h3><p>Wet, messed, leaks, accidents, daytime, and dry events.</p></div></div><canvas id="dashboardTrend"></canvas><div class="chart-legend">${legendHtml(["wet","mess","leak","accident","daytime","dry"])}</div></div></article>
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Spending by Category</h3><p>Diapers and supplies together.</p></div></div><canvas id="dashboardExpenses"></canvas></div></article>
-        </div>
+        ${visible("dashboardTrend") || visible("dashboardExpenses") ? `<div class="grid half" style="margin-top:14px">
+          ${visible("dashboardTrend") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>30-Day Event Trend</h3><p>Wet, messed, leaks, accidents, daytime, and dry events.</p></div></div><canvas id="dashboardTrend"></canvas><div class="chart-legend">${legendHtml(["wet","mess","leak","accident","daytime","dry"])}</div></div></article>` : ""}
+          ${visible("dashboardExpenses") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Spending by Category</h3><p>Diapers and supplies together.</p></div></div><canvas id="dashboardExpenses"></canvas></div></article>` : ""}
+        </div>` : ""}
       `;
       bindGoto();
-      drawLineChart("dashboardTrend", trendBuckets(30), ["wet", "mess", "leak", "accident", "daytime", "dry"]);
-      drawBarChart("dashboardExpenses", groupBy(allExpenseRows(), "category", "amount"), "name", "value", { moneyAxis: true });
+      if (visible("dashboardTrend")) drawLineChart("dashboardTrend", trendBuckets(30), ["wet", "mess", "leak", "accident", "daytime", "dry"]);
+      if (visible("dashboardExpenses")) drawBarChart("dashboardExpenses", groupBy(allExpenseRows(), "category", "amount"), "name", "value", { moneyAxis: true });
     }
 
     function renderRecentActivity() {
@@ -1387,31 +1407,31 @@
           ${statCard("Daytime", t.dayEvents, "marked daytime", "money")}
           ${statCard("Leaks", t.leaks, `${t.bedLeaks} bed, ${t.awakeLeaks} awake`, "wet")}
         </div>
-        <div class="grid half" style="margin-top:14px">
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Event Trend</h3><p>Daily counts across selected range.</p></div><select id="trendRange"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div><canvas id="trendChart"></canvas><div class="chart-legend">${legendHtml(["wet","mess","leak","accident","daytime","dry"])}</div></div></article>
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Sleep and Day Summary</h3><p>Sleep, daytime, leak, and accident breakdown.</p></div></div><canvas id="sleepChart"></canvas></div></article>
-        </div>
-        <div class="grid half" style="margin-top:14px">
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Diaper Usage</h3><p>Which styles are used most often.</p></div></div><canvas id="usageChart"></canvas></div></article>
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Reliability Watch</h3><p>Leaks and accidents by diaper style.</p></div></div><div class="list">${renderReliabilityList()}</div></div></article>
-        </div>
-        <div class="grid half" style="margin-top:14px">
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Usage by Time of Day</h3><p>Morning, afternoon, evening, night, and overnight logs.</p></div></div><canvas id="timeOfDayChart"></canvas></div></article>
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Diaper Time Breakdown</h3><p>Which diaper styles show up in each part of the day.</p></div></div><div class="list">${renderDiaperTimeList()}</div></div></article>
-        </div>
-        <div class="grid half" style="margin-top:14px">
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Disposable vs Cloth Cost</h3><p>Tracked purchase cost split by type.</p></div></div><canvas id="materialCostChart"></canvas></div></article>
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Cloth Cost Per Wear</h3><p>Lower bars mean better value so far.</p></div></div><canvas id="clothCostChart"></canvas></div></article>
-        </div>
+        ${visible("trendEvent") || visible("trendSleepDay") ? `<div class="grid half" style="margin-top:14px">
+          ${visible("trendEvent") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Event Trend</h3><p>Daily counts across selected range.</p></div><select id="trendRange"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div><canvas id="trendChart"></canvas><div class="chart-legend">${legendHtml(["wet","mess","leak","accident","daytime","dry"])}</div></div></article>` : ""}
+          ${visible("trendSleepDay") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Sleep and Day Summary</h3><p>Sleep, daytime, leak, and accident breakdown.</p></div></div><canvas id="sleepChart"></canvas></div></article>` : ""}
+        </div>` : ""}
+        ${visible("trendUsage") || visible("trendReliability") ? `<div class="grid half" style="margin-top:14px">
+          ${visible("trendUsage") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Diaper Usage</h3><p>Which styles are used most often.</p></div></div><canvas id="usageChart"></canvas></div></article>` : ""}
+          ${visible("trendReliability") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Reliability Watch</h3><p>Leaks and accidents by diaper style.</p></div></div><div class="list">${renderReliabilityList()}</div></div></article>` : ""}
+        </div>` : ""}
+        ${visible("trendTimeOfDay") || visible("trendDiaperTime") ? `<div class="grid half" style="margin-top:14px">
+          ${visible("trendTimeOfDay") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Usage by Time of Day</h3><p>Morning, afternoon, evening, night, and overnight logs.</p></div></div><canvas id="timeOfDayChart"></canvas></div></article>` : ""}
+          ${visible("trendDiaperTime") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Diaper Time Breakdown</h3><p>Which diaper styles show up in each part of the day.</p></div></div><div class="list">${renderDiaperTimeList()}</div></div></article>` : ""}
+        </div>` : ""}
+        ${visible("trendMaterialCost") || visible("trendClothCost") ? `<div class="grid half" style="margin-top:14px">
+          ${visible("trendMaterialCost") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Disposable vs Cloth Cost</h3><p>Tracked purchase cost split by type.</p></div></div><canvas id="materialCostChart"></canvas></div></article>` : ""}
+          ${visible("trendClothCost") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Cloth Cost Per Wear</h3><p>Lower bars mean better value so far.</p></div></div><canvas id="clothCostChart"></canvas></div></article>` : ""}
+        </div>` : ""}
       `;
-      document.getElementById("trendRange").value = String(range);
-      document.getElementById("trendRange").addEventListener("change", e => {
+      if (document.getElementById("trendRange")) document.getElementById("trendRange").value = String(range);
+      if (document.getElementById("trendRange")) document.getElementById("trendRange").addEventListener("change", e => {
         state.filters.trendRange = e.target.value;
         saveState();
         renderTrends();
       });
-      drawLineChart("trendChart", trendBuckets(range), ["wet", "mess", "leak", "accident", "daytime", "dry"]);
-      drawBarChart("sleepChart", [
+      if (visible("trendEvent")) drawLineChart("trendChart", trendBuckets(range), ["wet", "mess", "leak", "accident", "daytime", "dry"]);
+      if (visible("trendSleepDay")) drawBarChart("sleepChart", [
         { name: "Sleep wet", value: t.sleepWet },
         { name: "Sleep messed", value: t.sleepMess },
         { name: "Daytime", value: t.dayEvents },
@@ -1421,15 +1441,15 @@
         { name: "Night accident", value: t.nightAccidents },
         { name: "Day accidents", value: t.dayAccidents }
       ], "name", "value");
-      drawBarChart("usageChart", groupLogsByDiaper(), "name", "value");
-      drawBarChart("timeOfDayChart", groupLogsByTimeBucket(), "name", "value");
-      drawBarChart("materialCostChart", [
+      if (visible("trendUsage")) drawBarChart("usageChart", groupLogsByDiaper(), "name", "value");
+      if (visible("trendTimeOfDay")) drawBarChart("timeOfDayChart", groupLogsByTimeBucket(), "name", "value");
+      if (visible("trendMaterialCost")) drawBarChart("materialCostChart", [
         { name: "Disposable", value: t.diaperSpent },
         { name: "Cloth", value: t.clothSpent }
       ], "name", "value", { moneyAxis: true });
       const clothCostRows = clothCostPerWearRows();
       const clothAverage = clothCostRows.length ? clothCostRows.reduce((sum, row) => sum + row.value, 0) / clothCostRows.length : 0;
-      drawBarChart("clothCostChart", clothCostRows, "name", "value", { moneyAxis: true, referenceValue: clothAverage, referenceLabel: "avg cost/wear" });
+      if (visible("trendClothCost")) drawBarChart("clothCostChart", clothCostRows, "name", "value", { moneyAxis: true, referenceValue: clothAverage, referenceLabel: "avg cost/wear" });
     }
 
     function renderReliabilityList() {
@@ -1711,16 +1731,16 @@
               <button class="btn fox" type="submit">Save Expense</button>
             </form>
           </div></article>
-          <article class="card"><div class="card-body">
+          ${visible("expenseCharts") ? `<article class="card"><div class="card-body">
             <div class="card-title"><div><h3>Expense Charts</h3><p>Totals by brand and category.</p></div></div>
             <canvas id="expenseBrandChart"></canvas>
             <canvas id="expenseCategoryChart" style="margin-top:16px"></canvas>
-          </div></article>
+          </div></article>` : ""}
         </div>
-        <div class="grid half" style="margin-top:14px">
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>By Diaper Style or Type</h3><p>Style totals plus supply categories.</p></div></div><div class="list">${byStyle.map(renderMoneyRow).join("")}</div></div></article>
-          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Expense List</h3><p>Newest expenses first.</p></div></div><div class="list">${rows.map(renderExpenseItem).join("") || `<div class="empty">No expenses yet.</div>`}</div></div></article>
-        </div>
+        ${visible("expenseByStyle") || visible("expenseList") ? `<div class="grid half" style="margin-top:14px">
+          ${visible("expenseByStyle") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>By Diaper Style or Type</h3><p>Style totals plus supply categories.</p></div></div><div class="list">${byStyle.map(renderMoneyRow).join("")}</div></div></article>` : ""}
+          ${visible("expenseList") ? `<article class="card"><div class="card-body"><div class="card-title"><div><h3>Expense List</h3><p>Newest expenses first.</p></div></div><div class="list">${rows.map(renderExpenseItem).join("") || `<div class="empty">No expenses yet.</div>`}</div></div></article>` : ""}
+        </div>` : ""}
       `;
       document.getElementById("expenseForm").addEventListener("submit", event => {
         event.preventDefault();
@@ -1737,8 +1757,8 @@
         render();
         toast("Expense saved.");
       });
-      drawBarChart("expenseBrandChart", byBrand, "name", "value", { moneyAxis: true });
-      drawBarChart("expenseCategoryChart", byCategory, "name", "value", { moneyAxis: true });
+      if (visible("expenseCharts")) drawBarChart("expenseBrandChart", byBrand, "name", "value", { moneyAxis: true });
+      if (visible("expenseCharts")) drawBarChart("expenseCategoryChart", byCategory, "name", "value", { moneyAxis: true });
     }
 
     function renderMoneyRow(row) {
@@ -1758,6 +1778,21 @@
     }
 
     function renderSettings() {
+      const visibilityOptions = [
+        ["dashboardTrend", "Dashboard event trend"],
+        ["dashboardExpenses", "Dashboard spending chart"],
+        ["trendEvent", "Event trend graph"],
+        ["trendSleepDay", "Sleep and day summary graph"],
+        ["trendUsage", "Diaper usage graph"],
+        ["trendReliability", "Reliability table"],
+        ["trendTimeOfDay", "Usage by time of day graph"],
+        ["trendDiaperTime", "Diaper time breakdown table"],
+        ["trendMaterialCost", "Disposable vs cloth cost graph"],
+        ["trendClothCost", "Cloth cost per wear graph"],
+        ["expenseCharts", "Expense brand/category charts"],
+        ["expenseByStyle", "Expense by style/type table"],
+        ["expenseList", "Expense list table"]
+      ];
       document.getElementById("settings").innerHTML = `
         <div class="grid two">
           <article class="card"><div class="card-body">
@@ -1780,6 +1815,12 @@
               </div>
               <button class="btn sky" type="submit">Save Timing</button>
             </form>
+          </div></article>
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Visible Tables and Graphs</h3><p>Turn off sections you do not want to see.</p></div></div>
+            <div class="check-row">
+              ${visibilityOptions.map(([key, label]) => `<label class="check"><input type="checkbox" data-chart-toggle="${key}" ${visible(key) ? "checked" : ""}>${label}</label>`).join("")}
+            </div>
           </div></article>
           <article class="card"><div class="card-body">
             <div class="card-title"><div><h3>Storage Plan</h3><p>What the app keeps track of.</p></div></div>
@@ -1814,6 +1855,11 @@
         render();
         toast("Timing settings saved.");
       });
+      document.querySelectorAll("[data-chart-toggle]").forEach(input => input.addEventListener("change", event => {
+        state.chartVisibility = { ...defaultState.chartVisibility, ...(state.chartVisibility || {}), [event.target.dataset.chartToggle]: event.target.checked };
+        saveState();
+        toast("Display settings saved.");
+      }));
       document.getElementById("resetApp").addEventListener("click", () => {
         if (confirm("Reset all Little Fox Training data?")) {
           state = structuredClone(defaultState);
@@ -2014,7 +2060,14 @@
         try {
           const next = JSON.parse(reader.result);
           if (!next.diapers || !next.logs || !next.expenses) throw new Error("Invalid backup");
-          state = { ...structuredClone(defaultState), ...next, filters: { ...defaultState.filters, ...(next.filters || {}) } };
+          state = applyPastPurchaseSeed({
+            ...structuredClone(defaultState),
+            ...next,
+            purchases: Array.isArray(next.purchases) ? next.purchases.filter(p => p.id !== "p1") : structuredClone(defaultState.purchases),
+            filters: { ...defaultState.filters, ...(next.filters || {}) },
+            timing: { ...defaultState.timing, ...(next.timing || {}) },
+            chartVisibility: { ...defaultState.chartVisibility, ...(next.chartVisibility || {}) }
+          });
           saveState();
           render();
           toast("Backup imported.");

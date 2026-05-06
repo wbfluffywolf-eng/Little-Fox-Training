@@ -32,6 +32,7 @@ The Streamlit version wraps the same local HTML app. It still auto-saves to the 
 - One-time starter import for past cloth diapers, inserts, disposable diapers, and laundry supplies from saved purchase screenshots.
 - Export/import JSON backups.
 - Private mode to hide dollar amounts on screen.
+- Settings toggles to show or hide selected dashboard, trend, and expense tables/graphs.
 - Auto-saves to local browser storage after each log, inventory change, expense, import, or setting update.
 - Local browser storage; no server or account required.
 
