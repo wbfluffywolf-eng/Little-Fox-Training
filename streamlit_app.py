@@ -11,6 +11,8 @@ ASSET_TYPES = {
     "assets/app-cover-stroller.png": "image/png",
     "assets/changing-table-fox.png": "image/png",
     "assets/baby-fox-mascot.png": "image/png",
+    "assets/sidebar-wag-wag.png": "image/png",
+    "assets/sidebar-daily-log.png": "image/png",
 }
 
 
