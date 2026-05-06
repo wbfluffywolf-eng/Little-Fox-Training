@@ -638,6 +638,7 @@
       <section class="section" id="inventory"></section>
       <section class="section" id="calendar"></section>
       <section class="section" id="trends"></section>
+      <section class="section" id="cloth"></section>
       <section class="section" id="expenses"></section>
       <section class="section" id="settings"></section>
     </main>
@@ -675,6 +676,7 @@
       ["inventory", "Inventory", "Stock"],
       ["calendar", "Calendar", "Dates"],
       ["trends", "Trends", "Chart"],
+      ["cloth", "Cloth Diapers", "Cloth"],
       ["expenses", "Expenses", "Money"],
       ["settings", "Settings", "Lock"]
     ];
@@ -702,9 +704,41 @@
         { id: "e2", date: "2026-05-02", category: "Changing pads", brand: "Generic", item: "Disposable pads", amount: 18.99 },
         { id: "e3", date: "2026-05-03", category: "Wipes", brand: "Generic", item: "Wipes pack", amount: 6.49 }
       ],
+      clothDiapers: [],
+      clothUses: [],
       calendarCursor: todayIso().slice(0, 7),
       filters: { inventorySearch: "", trendRange: "30", expenseRange: "all" },
+      timing: { beforeBedStart: "19:00", beforeBedEnd: "23:00", morningStart: "05:00", morningEnd: "10:00" },
+      lastChangedTime: "",
       privateMode: false
+    };
+
+    const pastPurchaseSeed = {
+      version: "past-purchases-2026-05-05-v2",
+      clothDiapers: [
+        { id: "cloth-contour-pad-2", type: "insert", brand: "InControl", style: "Contour Washable Boosters", size: "2 pack", quantity: 2, purchasePrice: 0, dateBought: "2026-05-05" },
+        { id: "cloth-bamboo-contour-3", type: "insert", brand: "InControl", style: "Bamboo Contour Booster Pads", size: "3 pack", quantity: 3, purchasePrice: 0, dateBought: "2026-05-05" },
+        { id: "cloth-ssf-m", type: "diaper", brand: "ThreadedArmor", style: "Adult Cotton Fitted Snap Diaper", size: "Medium", quantity: 1, purchasePrice: 0, dateBought: "2026-05-05" },
+        { id: "cloth-microfiber-inserts-4", type: "insert", brand: "ThreadedArmor", style: "Adult Microfiber Booster Pads", size: "4 pack", quantity: 4, purchasePrice: 0, dateBought: "2026-05-05" },
+        { id: "cloth-harmony-nighttime-m", type: "diaper", brand: "ThreadedArmor", style: "Harmony Nighttime Fitted Cloth Diaper", size: "Medium", quantity: 1, purchasePrice: 0, dateBought: "2026-05-05" },
+        { id: "cloth-northshore-underpad", type: "underpad", brand: "NorthShore", style: "Champion XD Washable Underpad", size: "Large 33x35 in.", quantity: 1, purchasePrice: 0, dateBought: "2026-05-05" },
+        { id: "cloth-birdseye-inserts", type: "insert", brand: "Unknown", style: "Adult Cloth Diaper Inserts", size: "Birdseye / Large / 4 pack", quantity: 4, purchasePrice: 11.88, dateBought: "2026-05-05" },
+        { id: "cloth-leakmaster-aio", type: "diaper", brand: "LeakMaster", style: "Adult All-In-One Cloth Diaper", size: "Medium", quantity: 1, purchasePrice: 36.51, dateBought: "2026-05-05" },
+        { id: "cloth-ecoable-pocket", type: "diaper", brand: "EcoAble", style: "Pocket Cloth Diaper 2.0 Day & Night Set", size: "Small / Wolf", quantity: 1, purchasePrice: 62.99, dateBought: "2026-05-05" },
+        { id: "cloth-step-up-insert", type: "insert", brand: "ThreadedArmor", style: "Adult Diaper Step-up Insert", size: "S/M", quantity: 1, purchasePrice: 14.95, dateBought: "2026-05-05" },
+        { id: "cloth-grimoire-brief", type: "diaper", brand: "ThreadedArmor", style: "Limited Release: Grimoire Protective Brief", size: "Medium", quantity: 1, purchasePrice: 69.99, dateBought: "2026-05-05" },
+        { id: "cloth-sweater-weather-brief", type: "diaper", brand: "ThreadedArmor", style: "Limited Release: Sweater Weather Protective Brief", size: "Medium", quantity: 1, purchasePrice: 69.99, dateBought: "2026-05-05" },
+        { id: "cloth-snaps-brief", type: "diaper", brand: "ThreadedArmor", style: "Protective Briefs with Snaps", size: "White / Medium", quantity: 1, purchasePrice: 64.99, dateBought: "2026-05-05" }
+      ],
+      disposableDiapers: [
+        { id: "disp-incontrol-bedry-elitecare", brand: "InControl", style: "BeDry EliteCare Premium Incontinence Briefs", size: "Case", count: 2, perCase: 1, casePrice: 0, lowStock: 1 },
+        { id: "disp-incontrol-active-air", brand: "InControl", style: "Active Air Incontinence Briefs", size: "Case", count: 1, perCase: 1, casePrice: 0, lowStock: 1 },
+        { id: "disp-lndu-honey-tales", brand: "LNGU", style: "Honey Tales", size: "Medium / Pack of 10", count: 10, perCase: 10, casePrice: 44.98, lowStock: 3 },
+        { id: "disp-beddybyes-medium", brand: "BeddyByes", style: "BeddyByes", size: "Medium / 4 bags of 10", count: 80, perCase: 40, casePrice: 112.5, lowStock: 10 }
+      ],
+      expenses: [
+        { id: "exp-heavy-duty-laundry-bag", date: "2026-05-05", category: "Laundry supplies", brand: "Unknown", item: "Heavy-Duty Mesh Laundry Bag", amount: 9.95 }
+      ]
     };
 
     let state = loadState();
@@ -713,15 +747,57 @@
     function loadState() {
       try {
         const parsed = JSON.parse(localStorage.getItem(STORE_KEY));
-        if (!parsed || typeof parsed !== "object") return structuredClone(defaultState);
-        return {
+        if (!parsed || typeof parsed !== "object") return applyPastPurchaseSeed(structuredClone(defaultState));
+        return applyPastPurchaseSeed({
           ...structuredClone(defaultState),
           ...parsed,
+          clothDiapers: Array.isArray(parsed.clothDiapers) ? parsed.clothDiapers : [],
+          clothUses: Array.isArray(parsed.clothUses) ? parsed.clothUses : [],
+          diapers: Array.isArray(parsed.diapers) ? parsed.diapers : structuredClone(defaultState.diapers),
+          expenses: Array.isArray(parsed.expenses) ? parsed.expenses : structuredClone(defaultState.expenses),
+          timing: { ...defaultState.timing, ...(parsed.timing || {}) },
+          lastChangedTime: parsed.lastChangedTime || "",
           filters: { ...defaultState.filters, ...(parsed.filters || {}) }
-        };
+        });
       } catch {
-        return structuredClone(defaultState);
+        return applyPastPurchaseSeed(structuredClone(defaultState));
       }
+    }
+
+    function applyPastPurchaseSeed(next) {
+      if (next.pastPurchaseSeedVersion === pastPurchaseSeed.version) return next;
+      const hasId = (rows, id) => rows.some(row => row.id === id);
+      next.clothDiapers = [...(next.clothDiapers || [])];
+      next.diapers = [...(next.diapers || [])];
+      next.expenses = [...(next.expenses || [])];
+      pastPurchaseSeed.clothDiapers.forEach(item => {
+        if (!hasId(next.clothDiapers, item.id)) {
+          next.clothDiapers.push(structuredClone(item));
+        } else {
+          next.clothDiapers = next.clothDiapers.map(row => row.id === item.id ? { ...item, ...row, type: row.type || item.type, brand: row.brand === "Unknown" ? item.brand : row.brand } : row);
+        }
+      });
+      pastPurchaseSeed.disposableDiapers.forEach(item => {
+        if (!hasId(next.diapers, item.id)) next.diapers.push(structuredClone(item));
+      });
+      pastPurchaseSeed.expenses.forEach(item => {
+        if (!hasId(next.expenses, item.id)) next.expenses.push(structuredClone(item));
+      });
+      next.pastPurchaseSeedVersion = pastPurchaseSeed.version;
+      next.clothDiapers = next.clothDiapers.map(normalizeClothItem);
+      next.clothUses = (next.clothUses || []).map(use => ({ ...use, insertIds: Array.isArray(use.insertIds) ? use.insertIds : (use.insertId ? [use.insertId] : []), insertId: use.insertId || "" }));
+      next.diapers = (next.diapers || []).map(item => ({ ...item, itemType: item.itemType || "diaper" }));
+      next.logs = (next.logs || []).map(log => ({ ...log, insertId: log.insertId || "", dayNight: log.dayNight || "auto", startTime: log.startTime || "" }));
+      return next;
+    }
+
+    function normalizeClothItem(item) {
+      const insertWords = /insert|booster|pad/i;
+      const underpadWords = /underpad/i;
+      return {
+        ...item,
+        type: item.type || (underpadWords.test(`${item.style} ${item.size}`) ? "underpad" : insertWords.test(`${item.style} ${item.size}`) ? "insert" : "diaper")
+      };
     }
 
     function saveState() {
@@ -773,6 +849,44 @@
       return "Night";
     }
 
+    function dayNightLabel(entry) {
+      if (entry.dayNight === "day") return "Day";
+      if (entry.dayNight === "night") return "Night";
+      if (entry.dayNight === "beforeBed") return "Before bed";
+      if (entry.dayNight === "morning") return "Morning change";
+      const bucket = timeBucket(entry);
+      const minutes = timeMinutes(entry.time || "12:00");
+      if (isTimeInWindow(minutes, state.timing.beforeBedStart, state.timing.beforeBedEnd)) return "Before bed";
+      if (isTimeInWindow(minutes, state.timing.morningStart, state.timing.morningEnd)) return "Morning change";
+      return bucket === "Overnight" || bucket === "Night" ? "Night" : "Day";
+    }
+
+    function timeMinutes(time) {
+      const [hour, minute = "0"] = String(time || "00:00").split(":").map(Number);
+      return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : 0;
+    }
+
+    function isTimeInWindow(minutes, start, end) {
+      const startMinutes = timeMinutes(start);
+      const endMinutes = timeMinutes(end);
+      if (startMinutes <= endMinutes) return minutes >= startMinutes && minutes <= endMinutes;
+      return minutes >= startMinutes || minutes <= endMinutes;
+    }
+
+    function wearDuration(startTime, endTime) {
+      if (!startTime || !endTime) return "";
+      const [startHour, startMinute] = startTime.split(":").map(Number);
+      const [endHour, endMinute] = endTime.split(":").map(Number);
+      if (![startHour, startMinute, endHour, endMinute].every(Number.isFinite)) return "";
+      let start = startHour * 60 + startMinute;
+      let end = endHour * 60 + endMinute;
+      if (end < start) end += 24 * 60;
+      const minutes = end - start;
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return hours ? `${hours}h ${mins ? `${mins}m` : ""}`.trim() : `${mins}m`;
+    }
+
     function allExpenseRows() {
       const diaperPurchases = state.purchases.map(p => {
         const d = diaperById(p.diaperId);
@@ -786,28 +900,67 @@
           source: "purchase"
         };
       });
-      return [...diaperPurchases, ...state.expenses.map(e => ({ ...e, source: "expense" }))];
+      const clothPurchases = state.clothDiapers.map(item => ({
+        id: item.id,
+        date: item.dateBought || todayIso(),
+        category: "Cloth diapers",
+        brand: item.brand || "Unknown",
+        item: item.style || "Cloth diaper",
+        amount: safeNumber(item.purchasePrice),
+        source: "cloth"
+      }));
+      return [...diaperPurchases, ...clothPurchases, ...state.expenses.map(e => ({ ...e, source: "expense" }))];
+    }
+
+    function allEventRows() {
+      const disposable = state.logs.map(log => ({ ...log, source: "disposable", leak: log.leak || log.leakedInBed || log.leakedWhileAwake, accident: log.accident || log.nightAccident || log.dayAccident }));
+      const cloth = state.clothUses.flatMap(use => {
+        const base = {
+          id: use.id,
+          date: use.date,
+          time: use.time,
+          startTime: use.startTime || "",
+          dayNight: use.dayNight || "auto",
+          sleep: dayNightLabel(use) === "Night",
+          daytime: dayNightLabel(use) === "Day",
+          leakedInBed: use.leaked && dayNightLabel(use) === "Night",
+          leakedWhileAwake: use.leaked && dayNightLabel(use) !== "Night",
+          leak: use.leaked,
+          nightAccident: false,
+          dayAccident: false,
+          accident: false,
+          source: "cloth"
+        };
+        const rows = [];
+        if (use.wet) rows.push({ ...base, event: "wet" });
+        if (use.messed) rows.push({ ...base, event: "mess" });
+        if (!rows.length) rows.push({ ...base, event: "dry" });
+        return rows;
+      });
+      return [...disposable, ...cloth];
     }
 
     function totals() {
       const totalStock = state.diapers.reduce((sum, d) => sum + safeNumber(d.count), 0);
       const lowStock = state.diapers.filter(d => safeNumber(d.count) <= safeNumber(d.lowStock)).length;
-      const wet = state.logs.filter(l => l.event === "wet" || l.wokeWet).length;
-      const mess = state.logs.filter(l => l.event === "mess").length;
-      const sleepWet = state.logs.filter(l => l.sleep && (l.event === "wet" || l.wokeWet)).length;
-      const sleepMess = state.logs.filter(l => l.sleep && l.event === "mess").length;
-      const wokeDry = state.logs.filter(l => l.wokeDry || l.event === "dry").length;
-      const dayEvents = state.logs.filter(l => l.daytime).length;
-      const nightAccidents = state.logs.filter(l => l.nightAccident).length;
-      const dayAccidents = state.logs.filter(l => l.dayAccident || (l.accident && !l.sleep)).length;
+      const events = allEventRows();
+      const wet = events.filter(l => l.event === "wet" || l.wokeWet).length;
+      const mess = events.filter(l => l.event === "mess").length;
+      const sleepWet = events.filter(l => (l.sleep || dayNightLabel(l) === "Night") && (l.event === "wet" || l.wokeWet)).length;
+      const sleepMess = events.filter(l => (l.sleep || dayNightLabel(l) === "Night") && l.event === "mess").length;
+      const wokeDry = events.filter(l => l.wokeDry || l.event === "dry").length;
+      const dayEvents = events.filter(l => l.daytime || dayNightLabel(l) === "Day").length;
+      const nightAccidents = events.filter(l => l.nightAccident).length;
+      const dayAccidents = events.filter(l => l.dayAccident || (l.accident && !l.sleep)).length;
       const accidents = nightAccidents + dayAccidents;
-      const bedLeaks = state.logs.filter(l => l.leakedInBed || (l.leak && l.sleep)).length;
-      const awakeLeaks = state.logs.filter(l => l.leakedWhileAwake || (l.leak && !l.sleep)).length;
+      const bedLeaks = events.filter(l => l.leakedInBed || (l.leak && (l.sleep || dayNightLabel(l) === "Night"))).length;
+      const awakeLeaks = events.filter(l => l.leakedWhileAwake || (l.leak && !(l.sleep || dayNightLabel(l) === "Night"))).length;
       const leaks = bedLeaks + awakeLeaks;
       const spent = allExpenseRows().reduce((sum, e) => sum + safeNumber(e.amount), 0);
       const diaperSpent = allExpenseRows().filter(e => e.category === "Diapers").reduce((sum, e) => sum + safeNumber(e.amount), 0);
-      const supplySpent = spent - diaperSpent;
-      return { totalStock, lowStock, wet, mess, sleepWet, sleepMess, wokeDry, dayEvents, nightAccidents, dayAccidents, accidents, bedLeaks, awakeLeaks, leaks, spent, diaperSpent, supplySpent };
+      const clothSpent = allExpenseRows().filter(e => e.category === "Cloth diapers").reduce((sum, e) => sum + safeNumber(e.amount), 0);
+      const supplySpent = spent - diaperSpent - clothSpent;
+      return { totalStock, lowStock, wet, mess, sleepWet, sleepMess, wokeDry, dayEvents, nightAccidents, dayAccidents, accidents, bedLeaks, awakeLeaks, leaks, spent, diaperSpent, clothSpent, supplySpent };
     }
 
     function setActive(tab) {
@@ -823,6 +976,7 @@
         inventory: "Manage diaper styles, case purchases, stock counts, and low-stock warnings.",
         calendar: "Review each month and add logs directly from a selected day.",
         trends: "See patterns across wet, mess, sleep, daytime, accident, leak, and dry data.",
+        cloth: "Track reusable cloth diapers by clean count, dirty count, wears, leaks, messes, and cost per wear.",
         expenses: "Track diaper costs, supply costs, totals by brand, and totals by item type.",
         settings: "Export, import, reset, and tune privacy display settings."
       };
@@ -862,7 +1016,7 @@
         <div class="grid two" style="margin-top:14px">
           <article class="card"><div class="card-body">
             <div class="card-title"><div><h3>Recent Activity</h3><p>Newest saved logs.</p></div><button class="btn secondary" data-goto="log">Add Log</button></div>
-            <div class="list">${renderLogList(state.logs.slice(0, 6))}</div>
+            <div class="list">${renderRecentActivity()}</div>
           </div></article>
           <article class="card"><div class="card-body">
             <div class="card-title"><div><h3>Low Stock Watch</h3><p>Restock before counts hit zero.</p></div><button class="btn secondary" data-goto="inventory">Inventory</button></div>
@@ -877,6 +1031,13 @@
       bindGoto();
       drawLineChart("dashboardTrend", trendBuckets(30), ["wet", "mess", "leak", "accident", "daytime", "dry"]);
       drawBarChart("dashboardExpenses", groupBy(allExpenseRows(), "category", "amount"), "name", "value", { moneyAxis: true });
+    }
+
+    function renderRecentActivity() {
+      const disposable = state.logs.map(log => ({ kind: "disposable", date: log.date, time: log.time, html: renderLogList([log]) }));
+      const cloth = state.clothUses.map(use => ({ kind: "cloth", date: use.date, time: use.time, html: renderClothUseItem(use) }));
+      const rows = [...disposable, ...cloth].sort((a,b) => `${b.date}T${b.time || "00:00"}`.localeCompare(`${a.date}T${a.time || "00:00"}`)).slice(0, 6);
+      return rows.length ? rows.map(row => row.html).join("") : `<div class="empty">No logs yet.</div>`;
     }
 
     function renderDiaperStockItem(item) {
@@ -901,12 +1062,14 @@
         return `
           <div class="item">
             <div class="item-head">
-              <div><h4>${escapeHtml(meta.label)} on ${formatDate(log.date)} at ${formatTime(log.time)}</h4><p>${escapeHtml(diaperName(log.diaperId))}</p></div>
+              <div><h4>${escapeHtml(meta.label)} on ${formatDate(log.date)} at ${formatTime(log.time)}</h4><p>${escapeHtml(diaperName(log.diaperId))}${log.insertId ? ` + ${escapeHtml(diaperName(log.insertId))}` : ""}</p></div>
               <button class="btn secondary" data-edit-log="${log.id}">Edit</button>
             </div>
             <div class="pill-row">
               <span class="pill ${meta.cls}">${escapeHtml(meta.label)}</span>
+              <span class="pill">${dayNightLabel(log)}</span>
               <span class="pill">${timeBucket(log)}</span>
+              ${wearDuration(log.startTime, log.time) ? `<span class="pill">worn ${wearDuration(log.startTime, log.time)}</span>` : ""}
               ${log.sleep ? `<span class="pill sleep">while sleeping</span>` : ""}
               ${log.daytime ? `<span class="pill dry">daytime</span>` : ""}
               ${log.leakedInBed || (log.leak && log.sleep) ? `<span class="pill wet">leaked in bed</span>` : ""}
@@ -925,7 +1088,7 @@
         <div class="grid two">
           <article class="card"><div class="card-body">
             <div class="card-title"><div><h3>Add Daily Log</h3><p>One saved wet or messed log subtracts one diaper from stock.</p></div></div>
-            ${logFormHtml({ date: todayIso(), time: currentTime(), diaperId: state.diapers[0]?.id || "", event: "wet", sleep: false, leakedInBed: false, leakedWhileAwake: false, daytime: false, nightAccident: false, dayAccident: false, notes: "" }, "newLogForm")}
+            ${logFormHtml({ date: todayIso(), startTime: state.lastChangedTime || "", time: currentTime(), diaperId: state.diapers.find(d => (d.itemType || "diaper") === "diaper")?.id || "", insertId: "", dayNight: "auto", event: "wet", sleep: false, leakedInBed: false, leakedWhileAwake: false, daytime: false, nightAccident: false, dayAccident: false, notes: "" }, "newLogForm")}
           </div></article>
           <article class="card"><div class="card-body">
             <div class="card-title"><div><h3>All Logs</h3><p>${state.logs.length} saved entries.</p></div><button class="btn secondary" id="clearLogsBtn">Clear Logs</button></div>
@@ -946,12 +1109,19 @@
     }
 
     function logFormHtml(log, formId) {
+      const disposableDiapers = state.diapers.filter(d => (d.itemType || "diaper") === "diaper");
+      const disposableInserts = state.diapers.filter(d => d.itemType === "insert");
       return `
         <form id="${formId}" class="grid" autocomplete="off">
           <div class="form-grid">
             <label>Date<input name="date" type="date" value="${escapeAttr(log.date)}" required></label>
-            <label>Time<input name="time" type="time" value="${escapeAttr(log.time || currentTime())}" required></label>
-            <label>Diaper Used<select name="diaperId" required>${state.diapers.map(d => `<option value="${d.id}" ${d.id === log.diaperId ? "selected" : ""}>${escapeHtml(d.brand)} ${escapeHtml(d.style)} - ${d.count} left</option>`).join("")}</select></label>
+            <label>Diaper Used<select name="diaperId" required>${disposableDiapers.map(d => `<option value="${d.id}" ${d.id === log.diaperId ? "selected" : ""}>${escapeHtml(d.brand)} ${escapeHtml(d.style)} - ${d.count} left</option>`).join("")}</select></label>
+            <label>Disposable insert<select name="insertId"><option value="">No disposable insert</option>${disposableInserts.map(d => `<option value="${d.id}" ${d.id === log.insertId ? "selected" : ""}>${escapeHtml(d.brand)} ${escapeHtml(d.style)} - ${d.count} left</option>`).join("")}</select></label>
+            <details class="field-full"><summary>Timing</summary><div class="form-grid" style="margin-top:10px">
+              <label>Put on time<input name="startTime" type="time" value="${escapeAttr(log.startTime || "")}"></label>
+              <label>Changed at<input name="time" type="time" value="${escapeAttr(log.time || currentTime())}" required></label>
+              <label>Change type<select name="dayNight"><option value="auto" ${log.dayNight === "auto" || !log.dayNight ? "selected" : ""}>Auto by time</option><option value="day" ${log.dayNight === "day" ? "selected" : ""}>Day</option><option value="night" ${log.dayNight === "night" ? "selected" : ""}>Night</option><option value="beforeBed" ${log.dayNight === "beforeBed" ? "selected" : ""}>Before bed</option><option value="morning" ${log.dayNight === "morning" ? "selected" : ""}>Morning change</option></select></label>
+            </div></details>
             <div class="field-full">
               <label>What happened?</label>
               <div class="event-grid">
@@ -992,8 +1162,11 @@
         const log = {
           id: editId || uid(),
           date: data.get("date"),
+          startTime: data.get("startTime"),
           time: data.get("time"),
           diaperId: data.get("diaperId"),
+          insertId: data.get("insertId"),
+          dayNight: data.get("dayNight"),
           event: data.get("event"),
           sleep: data.has("sleep"),
           leakedInBed: data.has("leakedInBed"),
@@ -1009,12 +1182,15 @@
           toast("Log updated.");
         } else {
           state.logs = [log, ...state.logs];
+          state.lastChangedTime = log.time;
           if (log.event === "wet" || log.event === "mess") {
-            state.diapers = state.diapers.map(d => d.id === log.diaperId ? { ...d, count: Math.max(0, safeNumber(d.count) - 1) } : d);
+            state.diapers = state.diapers.map(d => d.id === log.diaperId || (log.insertId && d.id === log.insertId) ? { ...d, count: Math.max(0, safeNumber(d.count) - 1) } : d);
           }
           form.reset();
           form.querySelector("[name=date]").value = todayIso();
+          form.querySelector("[name=startTime]").value = state.lastChangedTime || "";
           form.querySelector("[name=time]").value = currentTime();
+          form.querySelector("[name=dayNight]").value = "auto";
           form.querySelector("[name=event]").value = "wet";
           form.querySelectorAll("[data-event]").forEach(b => b.classList.toggle("active", b.dataset.event === "wet"));
           toast("Log saved.");
@@ -1032,7 +1208,7 @@
           <article class="card"><div class="card-body">
             <div class="card-title"><div><h3>Add Case Purchase</h3><p>Select a brand/style and enter cases bought.</p></div></div>
             <form id="caseForm" class="grid">
-              <label>Brand and diaper<select name="diaperId">${state.diapers.map(d => `<option value="${d.id}">${escapeHtml(d.brand)} ${escapeHtml(d.style)} (${d.perCase}/case)</option>`).join("")}</select></label>
+              <label>Brand and item<select name="diaperId">${state.diapers.map(d => `<option value="${d.id}">${escapeHtml(d.brand)} ${escapeHtml(d.style)} (${d.perCase}/case)</option>`).join("")}</select></label>
               <div class="form-grid">
                 <label>Cases bought<input name="cases" type="number" min="1" step="1" value="1"></label>
                 <label>Price per case<input name="pricePerCase" type="number" min="0" step="0.01" value="${state.diapers[0]?.casePrice || 0}"></label>
@@ -1040,11 +1216,12 @@
               <button class="btn fox" type="submit">Add Case to Stock</button>
             </form>
             <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
-            <div class="card-title"><div><h3>Add Diaper Style</h3><p>Create a brand/style before buying cases.</p></div></div>
+            <div class="card-title"><div><h3>Add Disposable Item</h3><p>Create diapers or disposable inserts before buying cases.</p></div></div>
             <form id="diaperForm" class="grid">
               <div class="form-grid">
                 <label>Brand<input name="brand" required placeholder="Brand"></label>
                 <label>Style<input name="style" required placeholder="Diaper style"></label>
+                <label>Type<select name="itemType"><option value="diaper">Disposable diaper</option><option value="insert">Disposable insert / booster</option></select></label>
                 <label>Size<input name="size" required placeholder="Medium, Large, XL"></label>
                 <label>Current count<input name="count" type="number" min="0" step="1" value="0"></label>
                 <label>Diapers per case<input name="perCase" type="number" min="1" step="1" value="40"></label>
@@ -1074,7 +1251,7 @@
       return `
         <div class="item">
           <div class="item-head">
-            <div><h4>${escapeHtml(d.brand)} ${escapeHtml(d.style)}</h4><p>${escapeHtml(d.size)} size</p></div>
+            <div><h4>${escapeHtml(d.brand)} ${escapeHtml(d.style)}</h4><p>${escapeHtml(d.size)} size - ${(d.itemType || "diaper") === "insert" ? "disposable insert" : "disposable diaper"}</p></div>
             <div class="toolbar"><button class="btn secondary" data-edit-diaper="${d.id}">Edit</button><button class="btn secondary" data-adjust-diaper="${d.id}">Adjust</button></div>
           </div>
           ${renderDiaperStockItem(d)}
@@ -1123,6 +1300,7 @@
           id: uid(),
           brand: data.get("brand").trim(),
           style: data.get("style").trim(),
+          itemType: data.get("itemType"),
           size: data.get("size").trim(),
           count: Math.max(0, Math.floor(safeNumber(data.get("count")))),
           perCase: Math.max(1, Math.floor(safeNumber(data.get("perCase")) || 1)),
@@ -1201,6 +1379,7 @@
     function renderTrends() {
       const range = safeNumber(state.filters.trendRange || 30);
       const t = totals();
+      const dayMessed = allEventRows().filter(log => log.event === "mess" && dayNightLabel(log) === "Day").length;
       document.getElementById("trends").innerHTML = `
         <div class="grid stats">
           ${statCard("Sleep Wet", t.sleepWet, "wet while sleeping", "sleep")}
@@ -1220,6 +1399,10 @@
           <article class="card"><div class="card-body"><div class="card-title"><div><h3>Usage by Time of Day</h3><p>Morning, afternoon, evening, night, and overnight logs.</p></div></div><canvas id="timeOfDayChart"></canvas></div></article>
           <article class="card"><div class="card-body"><div class="card-title"><div><h3>Diaper Time Breakdown</h3><p>Which diaper styles show up in each part of the day.</p></div></div><div class="list">${renderDiaperTimeList()}</div></div></article>
         </div>
+        <div class="grid half" style="margin-top:14px">
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Disposable vs Cloth Cost</h3><p>Tracked purchase cost split by type.</p></div></div><canvas id="materialCostChart"></canvas></div></article>
+          <article class="card"><div class="card-body"><div class="card-title"><div><h3>Cloth Cost Per Wear</h3><p>Lower bars mean better value so far.</p></div></div><canvas id="clothCostChart"></canvas></div></article>
+        </div>
       `;
       document.getElementById("trendRange").value = String(range);
       document.getElementById("trendRange").addEventListener("change", e => {
@@ -1232,13 +1415,21 @@
         { name: "Sleep wet", value: t.sleepWet },
         { name: "Sleep messed", value: t.sleepMess },
         { name: "Daytime", value: t.dayEvents },
+        { name: "Day messed", value: dayMessed },
         { name: "Bed leaks", value: t.bedLeaks },
         { name: "Awake leaks", value: t.awakeLeaks },
-        { name: "Night accidents", value: t.nightAccidents },
+        { name: "Night accident", value: t.nightAccidents },
         { name: "Day accidents", value: t.dayAccidents }
       ], "name", "value");
       drawBarChart("usageChart", groupLogsByDiaper(), "name", "value");
       drawBarChart("timeOfDayChart", groupLogsByTimeBucket(), "name", "value");
+      drawBarChart("materialCostChart", [
+        { name: "Disposable", value: t.diaperSpent },
+        { name: "Cloth", value: t.clothSpent }
+      ], "name", "value", { moneyAxis: true });
+      const clothCostRows = clothCostPerWearRows();
+      const clothAverage = clothCostRows.length ? clothCostRows.reduce((sum, row) => sum + row.value, 0) / clothCostRows.length : 0;
+      drawBarChart("clothCostChart", clothCostRows, "name", "value", { moneyAxis: true, referenceValue: clothAverage, referenceLabel: "avg cost/wear" });
     }
 
     function renderReliabilityList() {
@@ -1257,6 +1448,242 @@
       `).join("");
     }
 
+    function clothStats(item) {
+      const now = Date.now();
+      const uses = state.clothUses.filter(use => use.clothId === item.id || use.insertId === item.id || (use.insertIds || []).includes(item.id));
+      const dirty = uses.filter(use => now - new Date(`${use.date}T${use.time || "00:00"}`).getTime() < 48 * 60 * 60 * 1000).length;
+      const worn = uses.length;
+      const leaked = uses.filter(use => use.leaked).length;
+      const messed = uses.filter(use => use.messed).length;
+      const owned = Math.max(0, Math.floor(safeNumber(item.quantity)));
+      const clean = Math.max(0, owned - dirty);
+      const costPerWear = worn ? safeNumber(item.purchasePrice) / worn : safeNumber(item.purchasePrice);
+      return { owned, clean, dirty, worn, leaked, messed, costPerWear };
+    }
+
+    function clothName(id) {
+      const item = state.clothDiapers.find(cloth => cloth.id === id);
+      return item ? `${item.brand} ${item.style}` : "Deleted cloth diaper";
+    }
+
+    function clothCostPerWearRows() {
+      return state.clothDiapers
+        .map(normalizeClothItem)
+        .filter(item => item.type === "diaper")
+        .map(item => ({ name: `${item.brand} ${item.style}`, value: Number(clothStats(item).costPerWear.toFixed(2)) }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8);
+    }
+
+    function renderCloth() {
+      const clothItems = state.clothDiapers.map(normalizeClothItem);
+      const diaperItems = clothItems.filter(item => item.type === "diaper");
+      const insertItems = clothItems.filter(item => item.type === "insert");
+      const underpadItems = clothItems.filter(item => item.type === "underpad");
+      const stats = clothItems.map(item => ({ item, stats: clothStats(item) }));
+      const diaperStats = diaperItems.map(item => ({ item, stats: clothStats(item) }));
+      const insertStats = insertItems.map(item => ({ item, stats: clothStats(item) }));
+      const totalOwned = diaperStats.reduce((sum, row) => sum + row.stats.owned, 0);
+      const totalClean = diaperStats.reduce((sum, row) => sum + row.stats.clean, 0);
+      const totalDirty = diaperStats.reduce((sum, row) => sum + row.stats.dirty, 0);
+      const totalWorn = diaperStats.reduce((sum, row) => sum + row.stats.worn, 0);
+      document.getElementById("cloth").innerHTML = `
+        <div class="grid two">
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Log Cloth Wear</h3><p>Choose the cloth diaper first, then any inserts or boosters used with it.</p></div></div>
+            <form id="clothUseForm" class="grid">
+              <div class="form-grid">
+                <label>Date<input name="date" type="date" value="${todayIso()}"></label>
+                <label>Cloth diaper<select name="clothId" required>${diaperItems.map(item => {
+                  const row = clothStats(item);
+                  return `<option value="${item.id}" ${row.clean <= 0 ? "disabled" : ""}>${escapeHtml(item.brand)} ${escapeHtml(item.style)} - ${row.clean} clean</option>`;
+                }).join("")}</select></label>
+              </div>
+              <div class="field-full">
+                <details><summary>Inserts and boosters</summary>
+                  <div class="check-row" style="margin-top:10px">
+                    ${insertItems.length ? insertItems.map(item => {
+                      const row = clothStats(item);
+                      return `<label class="check"><input type="checkbox" name="insertIds" value="${item.id}" ${row.clean <= 0 ? "disabled" : ""}>${escapeHtml(item.brand)} ${escapeHtml(item.style)} (${row.clean} clean)</label>`;
+                    }).join("") : `<div class="empty">No cloth inserts saved yet.</div>`}
+                  </div>
+                </details>
+              </div>
+              <details class="field-full"><summary>Timing</summary><div class="form-grid" style="margin-top:10px">
+                <label>Put on time<input name="startTime" type="time" value="${escapeAttr(state.lastChangedTime || "")}"></label>
+                <label>Changed at<input name="time" type="time" value="${currentTime()}"></label>
+                <label>Change type<select name="dayNight"><option value="auto">Auto by time</option><option value="day">Day</option><option value="night">Night</option><option value="beforeBed">Before bed</option><option value="morning">Morning change</option></select></label>
+              </div></details>
+              <div class="check-row">
+                ${checkHtml("wet", "Wet", true)}
+                ${checkHtml("messed", "Messed", false)}
+                ${checkHtml("leaked", "Leaked", false)}
+              </div>
+              <label>Notes<textarea name="notes" placeholder="Optional cloth note"></textarea></label>
+              <button class="btn fox" type="submit" ${diaperItems.length ? "" : "disabled"}>Save Cloth Wear</button>
+            </form>
+          </div></article>
+          <article class="card"><div class="card-body">
+            <div class="grid stats">
+              ${statCard("Cloth Diapers", totalOwned, `${diaperItems.length} diaper styles`, "wet")}
+              ${statCard("Clean Diapers", totalClean, "available right now", "money")}
+              ${statCard("Dirty Diapers", totalDirty, "returns after 48 hours", "mess")}
+              ${statCard("Inserts", insertItems.reduce((sum, item) => sum + clothStats(item).owned, 0), `${insertItems.length} insert styles`, "sleep")}
+            </div>
+          </div></article>
+        </div>
+        <div class="grid two" style="margin-top:14px">
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Add Cloth Diaper</h3><p>Track brand, style, owned count, and purchase price.</p></div></div>
+            <form id="clothForm" class="grid">
+              <div class="form-grid">
+                <label>Brand<input name="brand" required placeholder="Brand"></label>
+                <label>Style<input name="style" required placeholder="Cloth style"></label>
+                <label>Type<select name="type"><option value="diaper">Cloth diaper</option><option value="insert">Insert / booster</option><option value="underpad">Underpad</option></select></label>
+                <label>Size<input name="size" placeholder="One size, Large, etc."></label>
+                <label>Quantity owned<input name="quantity" type="number" min="1" step="1" value="1"></label>
+                <label>Purchase price<input name="purchasePrice" type="number" min="0" step="0.01" value="0"></label>
+                <label>Date bought<input name="dateBought" type="date" value="${todayIso()}"></label>
+              </div>
+              <button class="btn sky" type="submit">Save Cloth Diaper</button>
+            </form>
+          </div></article>
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Cloth Diapers</h3><p>Compare diaper shells and briefs by wear, leaks, messes, and cost.</p></div></div>
+            <div class="list">${diaperStats.length ? diaperStats.map(renderClothItem).join("") : `<div class="empty">Add cloth diapers to start tracking reusable inventory.</div>`}</div>
+          </div></article>
+        </div>
+        <div class="grid half" style="margin-top:14px">
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Inserts and Boosters</h3><p>Track booster wear separately from the outer cloth diaper.</p></div></div>
+            <div class="list">${insertStats.length ? insertStats.map(renderClothItem).join("") : `<div class="empty">Add inserts or boosters to compare them.</div>`}</div>
+          </div></article>
+          <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Underpads</h3><p>Reusable pads can be tracked without mixing them into diaper counts.</p></div></div>
+            <div class="list">${underpadItems.length ? underpadItems.map(item => renderClothItem({ item, stats: clothStats(item) })).join("") : `<div class="empty">No reusable underpads saved.</div>`}</div>
+          </div></article>
+        </div>
+        <article class="card" style="margin-top:14px"><div class="card-body">
+          <div class="card-title"><div><h3>Recent Cloth Uses</h3><p>Dirty counts auto-clear 48 hours after these times.</p></div></div>
+          <div class="list">${state.clothUses.length ? [...state.clothUses].sort((a,b) => `${b.date}T${b.time || "00:00"}`.localeCompare(`${a.date}T${a.time || "00:00"}`)).slice(0, 12).map(renderClothUseItem).join("") : `<div class="empty">No cloth wears logged yet.</div>`}</div>
+        </div></article>
+      `;
+      bindCloth();
+    }
+
+    function renderClothItem(row) {
+      const { item, stats } = row;
+      return `
+        <div class="item">
+          <div class="item-head">
+            <div><h4>${escapeHtml(item.brand)} ${escapeHtml(item.style)}</h4><p>${escapeHtml(item.size || "No size")} - ${formatDate(item.dateBought || todayIso())}</p></div>
+            <div class="toolbar"><button class="btn secondary" data-edit-cloth="${item.id}">Edit</button><button class="btn secondary" data-delete-cloth="${item.id}">Delete</button></div>
+          </div>
+          <div class="pill-row">
+            <span class="pill dry">${stats.clean} clean</span>
+            <span class="pill mess">${stats.dirty} dirty</span>
+            <span class="pill">${stats.owned} owned</span>
+            <span class="pill">${escapeHtml(item.type || "diaper")}</span>
+            <span class="pill">${stats.worn} worn</span>
+            <span class="pill wet">${stats.leaked} leaks</span>
+            <span class="pill alert">${stats.messed} messed</span>
+            <span class="pill">${state.privateMode ? "$--.--" : `${money(stats.costPerWear)} / wear`}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderClothUseItem(use) {
+      const insertIds = Array.isArray(use.insertIds) ? use.insertIds : (use.insertId ? [use.insertId] : []);
+      return `
+        <div class="item">
+          <div class="item-head">
+            <div><h4>${escapeHtml(clothName(use.clothId))}</h4><p>${formatDate(use.date)} at ${formatTime(use.time)} - ${dayNightLabel(use)}${wearDuration(use.startTime, use.time) ? ` - worn ${wearDuration(use.startTime, use.time)}` : ""}${insertIds.length ? ` - inserts: ${insertIds.map(clothName).map(escapeHtml).join(", ")}` : ""}</p></div>
+            <button class="btn secondary" data-delete-cloth-use="${use.id}">Delete</button>
+          </div>
+          <div class="pill-row">
+            <span class="pill">${dayNightLabel(use)}</span>
+            ${use.wet ? `<span class="pill wet">wet</span>` : ""}
+            ${use.messed ? `<span class="pill alert">messed</span>` : ""}
+            ${use.leaked ? `<span class="pill mess">leaked</span>` : ""}
+          </div>
+          ${use.notes ? `<p>${escapeHtml(use.notes)}</p>` : ""}
+        </div>
+      `;
+    }
+
+    function bindCloth() {
+      document.getElementById("clothForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        state.clothDiapers = [{
+          id: uid(),
+          brand: data.get("brand").trim(),
+          style: data.get("style").trim(),
+          type: data.get("type"),
+          size: data.get("size").trim(),
+          quantity: Math.max(1, Math.floor(safeNumber(data.get("quantity")) || 1)),
+          purchasePrice: safeNumber(data.get("purchasePrice")),
+          dateBought: data.get("dateBought") || todayIso()
+        }, ...state.clothDiapers];
+        saveState();
+        render();
+        toast("Cloth diaper saved.");
+      });
+      document.getElementById("clothUseForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const clothId = data.get("clothId");
+        const insertIds = data.getAll("insertIds");
+        const item = state.clothDiapers.find(cloth => cloth.id === clothId);
+        if (!item || clothStats(item).clean <= 0) {
+          toast("No clean cloth diapers available for that style.");
+          return;
+        }
+        const hasUnavailableInsert = insertIds.some(id => {
+          const insert = state.clothDiapers.find(cloth => cloth.id === id);
+          return !insert || clothStats(insert).clean <= 0;
+        });
+        if (hasUnavailableInsert) {
+          toast("No clean inserts available for that style.");
+          return;
+        }
+        state.clothUses = [{
+          id: uid(),
+          clothId,
+          insertId: insertIds[0] || "",
+          insertIds,
+          date: data.get("date"),
+          startTime: data.get("startTime"),
+          time: data.get("time"),
+          dayNight: data.get("dayNight"),
+          wet: data.has("wet"),
+          messed: data.has("messed"),
+          leaked: data.has("leaked"),
+          notes: data.get("notes").trim()
+        }, ...state.clothUses];
+        state.lastChangedTime = data.get("time");
+        saveState();
+        render();
+        toast("Cloth wear saved.");
+      });
+      document.querySelectorAll("[data-delete-cloth-use]").forEach(btn => btn.addEventListener("click", () => {
+        state.clothUses = state.clothUses.filter(use => use.id !== btn.dataset.deleteClothUse);
+        saveState();
+        render();
+        toast("Cloth wear deleted.");
+      }));
+      document.querySelectorAll("[data-delete-cloth]").forEach(btn => btn.addEventListener("click", () => {
+        if (!confirm("Delete this cloth diaper style and its wear history?")) return;
+        state.clothDiapers = state.clothDiapers.filter(item => item.id !== btn.dataset.deleteCloth);
+        state.clothUses = state.clothUses.filter(use => use.clothId !== btn.dataset.deleteCloth && use.insertId !== btn.dataset.deleteCloth && !(use.insertIds || []).includes(btn.dataset.deleteCloth));
+        saveState();
+        render();
+        toast("Cloth diaper deleted.");
+      }));
+      document.querySelectorAll("[data-edit-cloth]").forEach(btn => btn.addEventListener("click", () => openClothEditor(btn.dataset.editCloth)));
+    }
+
     function renderExpenses() {
       const rows = allExpenseRows().sort((a,b) => b.date.localeCompare(a.date));
       const byBrand = groupBy(rows, "brand", "amount");
@@ -1267,7 +1694,7 @@
         <div class="grid stats">
           ${statCard("Total Spent", money(t.spent), "all tracked costs", "money")}
           ${statCard("Diaper Expense", money(t.diaperSpent), "case purchases", "wet")}
-          ${statCard("Supply Expense", money(t.supplySpent), "powder, pads, more", "mess")}
+          ${statCard("Cloth Expense", money(t.clothSpent), "reusable diaper buys", "mess")}
           ${statCard("Expense Rows", rows.length, "purchases plus supplies", "sleep")}
         </div>
         <div class="grid two" style="margin-top:14px">
@@ -1343,12 +1770,26 @@
             </div>
           </div></article>
           <article class="card"><div class="card-body">
+            <div class="card-title"><div><h3>Timing Automation</h3><p>Auto labels use the changed-at time unless you manually choose a label.</p></div></div>
+            <form id="timingForm" class="grid">
+              <div class="form-grid">
+                <label>Before bed starts<input name="beforeBedStart" type="time" value="${escapeAttr(state.timing.beforeBedStart)}"></label>
+                <label>Before bed ends<input name="beforeBedEnd" type="time" value="${escapeAttr(state.timing.beforeBedEnd)}"></label>
+                <label>Morning starts<input name="morningStart" type="time" value="${escapeAttr(state.timing.morningStart)}"></label>
+                <label>Morning ends<input name="morningEnd" type="time" value="${escapeAttr(state.timing.morningEnd)}"></label>
+              </div>
+              <button class="btn sky" type="submit">Save Timing</button>
+            </form>
+          </div></article>
+          <article class="card"><div class="card-body">
             <div class="card-title"><div><h3>Storage Plan</h3><p>What the app keeps track of.</p></div></div>
             <div class="list">
               <div class="item"><h4>Diaper styles</h4><p>Brand, style, size, count, case quantity, price, and low-stock warning.</p></div>
               <div class="item"><h4>Case purchases</h4><p>Date, cases, units, price per case, and automatic diaper expense totals.</p></div>
               <div class="item"><h4>Daily logs</h4><p>Date, time, wet, messed, dry, while sleeping, leaked in bed, leaked while awake, daytime, night accident, day accident, diaper used, and notes.</p></div>
+              <div class="item"><h4>Cloth diapers</h4><p>Brand, style, owned count, clean count, dirty count, wears, leaks, messes, and cost per wear.</p></div>
               <div class="item"><h4>Supplies</h4><p>Baby powder, changing pads, wipes, creams, bags, clothing, and other expenses.</p></div>
+              <div class="item"><h4>Past purchases</h4><p>Cloth diapers, inserts, disposable diapers, and laundry supplies from your screenshots are added once and can be edited later.</p></div>
             </div>
           </div></article>
         </div>
@@ -1360,6 +1801,19 @@
       });
       document.getElementById("exportFull").addEventListener("click", exportBackup);
       document.getElementById("importFile").addEventListener("change", importBackup);
+      document.getElementById("timingForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        state.timing = {
+          beforeBedStart: data.get("beforeBedStart"),
+          beforeBedEnd: data.get("beforeBedEnd"),
+          morningStart: data.get("morningStart"),
+          morningEnd: data.get("morningEnd")
+        };
+        saveState();
+        render();
+        toast("Timing settings saved.");
+      });
       document.getElementById("resetApp").addEventListener("click", () => {
         if (confirm("Reset all Little Fox Training data?")) {
           state = structuredClone(defaultState);
@@ -1378,6 +1832,7 @@
       if (activeTab === "inventory") renderInventory();
       if (activeTab === "calendar") renderCalendar();
       if (activeTab === "trends") renderTrends();
+      if (activeTab === "cloth") renderCloth();
       if (activeTab === "expenses") renderExpenses();
       if (activeTab === "settings") renderSettings();
       bindEditButtons();
@@ -1442,6 +1897,7 @@
           <div class="form-grid">
             <label>Brand<input name="brand" required value="${escapeAttr(d.brand)}"></label>
             <label>Style<input name="style" required value="${escapeAttr(d.style)}"></label>
+            <label>Type<select name="itemType"><option value="diaper" ${(d.itemType || "diaper") === "diaper" ? "selected" : ""}>Disposable diaper</option><option value="insert" ${d.itemType === "insert" ? "selected" : ""}>Disposable insert / booster</option></select></label>
             <label>Size<input name="size" required value="${escapeAttr(d.size)}"></label>
             <label>Count<input name="count" type="number" min="0" step="1" value="${d.count}"></label>
             <label>Diapers per case<input name="perCase" type="number" min="1" step="1" value="${d.perCase}"></label>
@@ -1459,6 +1915,7 @@
           ...item,
           brand: data.get("brand").trim(),
           style: data.get("style").trim(),
+          itemType: data.get("itemType"),
           size: data.get("size").trim(),
           count: Math.max(0, Math.floor(safeNumber(data.get("count")))),
           perCase: Math.max(1, Math.floor(safeNumber(data.get("perCase")) || 1)),
@@ -1477,6 +1934,43 @@
         closeModal();
         render();
         toast("Diaper style deleted.");
+      });
+    }
+
+    function openClothEditor(id) {
+      const item = state.clothDiapers.find(cloth => cloth.id === id);
+      if (!item) return;
+      openModal("Edit Cloth Diaper", `
+        <form id="editClothForm" class="grid">
+          <div class="form-grid">
+            <label>Brand<input name="brand" required value="${escapeAttr(item.brand)}"></label>
+            <label>Style<input name="style" required value="${escapeAttr(item.style)}"></label>
+            <label>Type<select name="type"><option value="diaper" ${item.type === "diaper" ? "selected" : ""}>Cloth diaper</option><option value="insert" ${item.type === "insert" ? "selected" : ""}>Insert / booster</option><option value="underpad" ${item.type === "underpad" ? "selected" : ""}>Underpad</option></select></label>
+            <label>Size<input name="size" value="${escapeAttr(item.size || "")}"></label>
+            <label>Quantity owned<input name="quantity" type="number" min="1" step="1" value="${item.quantity}"></label>
+            <label>Purchase price<input name="purchasePrice" type="number" min="0" step="0.01" value="${item.purchasePrice}"></label>
+            <label>Date bought<input name="dateBought" type="date" value="${item.dateBought || todayIso()}"></label>
+          </div>
+          <button class="btn fox" type="submit">Save Cloth Diaper</button>
+        </form>
+      `);
+      document.getElementById("editClothForm").addEventListener("submit", event => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        state.clothDiapers = state.clothDiapers.map(cloth => cloth.id === id ? {
+          ...cloth,
+          brand: data.get("brand").trim(),
+          style: data.get("style").trim(),
+          type: data.get("type"),
+          size: data.get("size").trim(),
+          quantity: Math.max(1, Math.floor(safeNumber(data.get("quantity")) || 1)),
+          purchasePrice: safeNumber(data.get("purchasePrice")),
+          dateBought: data.get("dateBought") || todayIso()
+        } : cloth);
+        saveState();
+        closeModal();
+        render();
+        toast("Cloth diaper updated.");
       });
     }
 
@@ -1586,14 +2080,14 @@
         buckets.push({ name: short, iso, wet: 0, mess: 0, leak: 0, accident: 0, daytime: 0, dry: 0 });
       }
       const byIso = Object.fromEntries(buckets.map(b => [b.iso, b]));
-      state.logs.forEach(log => {
+      allEventRows().forEach(log => {
         const bucket = byIso[log.date];
         if (!bucket) return;
         if (log.event === "wet" || log.wokeWet) bucket.wet += 1;
         if (log.event === "mess") bucket.mess += 1;
         if (log.leakedInBed || log.leakedWhileAwake || log.leak) bucket.leak += 1;
         if (log.nightAccident || log.dayAccident || log.accident) bucket.accident += 1;
-        if (log.daytime) bucket.daytime += 1;
+        if (log.daytime || dayNightLabel(log) === "Day") bucket.daytime += 1;
         if (log.wokeDry || log.event === "dry") bucket.dry += 1;
       });
       return buckets;
@@ -1685,7 +2179,7 @@
         ctx.fillText("No data yet", width / 2, height / 2);
         return;
       }
-      const max = Math.max(1, ...data.map(r => safeNumber(r[valueKey])));
+      const max = Math.max(1, safeNumber(opts.referenceValue), ...data.map(r => safeNumber(r[valueKey])));
       drawAxes(ctx, width, height, pad, max, opts.moneyAxis);
       const innerW = width - pad.l - pad.r;
       const innerH = height - pad.t - pad.b;
@@ -1705,6 +2199,22 @@
         const label = String(row[nameKey]).slice(0, 12);
         ctx.fillText(label, x + barW / 2, height - pad.b + 12);
       });
+      if (safeNumber(opts.referenceValue) > 0) {
+        const y = pad.t + innerH - (safeNumber(opts.referenceValue) / max) * innerH;
+        ctx.strokeStyle = "#26313a";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(pad.l, y);
+        ctx.lineTo(width - pad.r, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#26313a";
+        ctx.font = "12px system-ui";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(opts.referenceLabel || "average", pad.l + 4, y - 4);
+      }
     }
 
     function formatDate(iso) {
