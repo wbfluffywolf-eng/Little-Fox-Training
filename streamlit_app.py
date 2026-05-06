@@ -7,6 +7,7 @@ import streamlit.components.v1 as components
 
 ROOT = Path(__file__).parent
 ASSET_TYPES = {
+    "assets/app-icon.png": "image/png",
     "assets/app-cover-stroller.png": "image/png",
     "assets/changing-table-fox.png": "image/png",
     "assets/baby-fox-mascot.png": "image/png",
