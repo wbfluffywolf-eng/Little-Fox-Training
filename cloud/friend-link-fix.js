@@ -1,5 +1,13 @@
 const inviteParam = new URLSearchParams(window.location.search).get("invite") || "";
 
+function injectStyle() {
+  if (document.getElementById("friendLinkFixStyle")) return;
+  const style = document.createElement("style");
+  style.id = "friendLinkFixStyle";
+  style.textContent = ".share-link{margin-top:8px;font-size:12px}";
+  document.head.appendChild(style);
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({
     "&": "&amp;",
@@ -43,6 +51,7 @@ function addFriendLinks() {
 }
 
 function applyFriendLinkFixes() {
+  injectStyle();
   improveInviteLogin();
   addFriendLinks();
 }
