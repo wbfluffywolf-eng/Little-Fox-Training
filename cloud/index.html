@@ -15,5 +15,79 @@
   </main>
   <div id="toast" class="toast"></div>
   <script type="module" src="app.js"></script>
+  <script>
+    (() => {
+      const key = "littleFoxCloudGraphPrefs";
+      const graphTitles = [
+        "Sleep and Day Summary",
+        "Diaper Usage",
+        "Expense Split",
+        "Subcategories",
+        "By Category"
+      ];
+      const defaults = Object.fromEntries(graphTitles.map(title => [title, true]));
+
+      function loadPrefs() {
+        try {
+          return { ...defaults, ...JSON.parse(localStorage.getItem(key) || "{}") };
+        } catch {
+          return { ...defaults };
+        }
+      }
+
+      function savePrefs(prefs) {
+        localStorage.setItem(key, JSON.stringify(prefs));
+      }
+
+      function applyGraphPrefs() {
+        const prefs = loadPrefs();
+        document.querySelectorAll(".card h3").forEach(heading => {
+          const title = heading.textContent.trim();
+          if (!graphTitles.includes(title)) return;
+          heading.closest(".card").style.display = prefs[title] ? "" : "none";
+        });
+      }
+
+      function injectSettings() {
+        const pageTitle = document.querySelector(".topbar h2")?.textContent.trim();
+        const view = document.getElementById("view");
+        if (pageTitle !== "Settings" || !view || document.getElementById("graphSettingsForm")) return;
+        const prefs = loadPrefs();
+        const card = document.createElement("article");
+        card.className = "card graph-settings";
+        card.innerHTML = `
+          <h3>Visible Graphs</h3>
+          <p>Turn off graph sections you do not want to see.</p>
+          <form id="graphSettingsForm" class="form-grid" style="margin-top:12px">
+            ${graphTitles.map(title => `
+              <label>
+                <input type="checkbox" name="${title}" ${prefs[title] ? "checked" : ""}>
+                <span>${title}</span>
+              </label>
+            `).join("")}
+          </form>
+        `;
+        view.appendChild(card);
+        card.querySelectorAll("input").forEach(input => {
+          input.addEventListener("change", () => {
+            const next = loadPrefs();
+            next[input.name] = input.checked;
+            savePrefs(next);
+            applyGraphPrefs();
+          });
+        });
+      }
+
+      const observer = new MutationObserver(() => {
+        injectSettings();
+        applyGraphPrefs();
+      });
+      observer.observe(document.getElementById("app"), { childList: true, subtree: true });
+      document.addEventListener("DOMContentLoaded", () => {
+        injectSettings();
+        applyGraphPrefs();
+      });
+    })();
+  </script>
 </body>
 </html>
