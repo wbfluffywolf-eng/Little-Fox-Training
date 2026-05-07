@@ -44,6 +44,13 @@ function addFriendLinks() {
     if (item.dataset.friendLinkReady === "true") return;
     const title = item.querySelector("h4")?.textContent?.trim() || "";
     const status = item.querySelector("p")?.textContent || "";
+    if (status.includes("revoked")) {
+      item.querySelector(".share-link")?.closest("label")?.remove();
+      item.querySelector("[data-revoke-member]")?.remove();
+      item.style.opacity = ".65";
+      item.dataset.friendLinkReady = "true";
+      return;
+    }
     if (!title.includes("@") || status.includes("owner")) return;
     const label = document.createElement("label");
     label.innerHTML = `Friend link<input class="share-link" readonly value="${escapeHtml(friendLink(title.toLowerCase()))}">`;
