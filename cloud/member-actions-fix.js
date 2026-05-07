@@ -47,7 +47,7 @@ document.addEventListener("click", async event => {
   if (card) {
     const status = card.querySelector("p");
     if (status) status.textContent = status.textContent.replace(/^(pending|active|revoked)/i, "revoked");
-    card.querySelector("[data-share-link]")?.closest("label")?.remove();
+    card.querySelector(".share-link")?.closest("label")?.remove();
     button.remove();
     card.style.opacity = ".65";
   }
