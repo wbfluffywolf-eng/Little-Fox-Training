@@ -1,4 +1,5 @@
 const inviteParam = new URLSearchParams(window.location.search).get("invite") || "";
+const productionAppUrl = "https://wbfluffywolf-eng.github.io/Little-Fox-Training/cloud/";
 
 function injectStyle() {
   if (document.getElementById("friendLinkFixStyle")) return;
@@ -19,7 +20,9 @@ function escapeHtml(value) {
 }
 
 function friendLink(email) {
-  const url = new URL(window.location.href);
+  const current = new URL(window.location.href);
+  const useProduction = ["localhost", "127.0.0.1", ""].includes(current.hostname) || current.protocol === "file:";
+  const url = new URL(useProduction ? productionAppUrl : window.location.href);
   url.hash = "";
   url.search = "";
   url.searchParams.set("invite", email);
