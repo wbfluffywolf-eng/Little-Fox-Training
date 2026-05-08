@@ -36,16 +36,17 @@ async function householdForCurrentUser() {
 
   const { data, error } = await supabase
     .from("household_members")
-    .select("household_id, role, can_add_logs")
+    .select("household_id, role, can_add_logs, households(owner_id)")
     .eq("user_id", user.id)
-    .eq("status", "active")
-    .limit(1)
-    .single();
+    .eq("status", "active");
   if (error) throw error;
-  if (!data || (data.role !== "owner" && !data.can_add_logs)) {
+  const memberships = data || [];
+  const writable = memberships.find(row => row.role === "owner" || row.households?.owner_id === user.id) ||
+    memberships.find(row => row.can_add_logs);
+  if (!writable) {
     throw new Error("This account does not have permission to add logs.");
   }
-  return { householdId: data.household_id, userId: user.id };
+  return { householdId: writable.household_id, userId: user.id };
 }
 
 document.addEventListener("submit", async event => {
