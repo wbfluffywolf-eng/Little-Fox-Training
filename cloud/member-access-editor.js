@@ -11,8 +11,7 @@ const PERMISSIONS = [
   ["can_view_messages", "Messages"],
   ["can_send_messages", "Can send messages"],
   ["can_view_settings", "Settings"],
-  ["can_suggest_diaper", "Can suggest diaper"],
-  ["can_add_logs", "Can add logs to my tracker"]
+  ["can_suggest_diaper", "Can suggest diaper"]
 ];
 
 function toast(message) {
