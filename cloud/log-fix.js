@@ -19,6 +19,15 @@ function toIso(value) {
   return value ? new Date(value).toISOString() : null;
 }
 
+function selectedEvents(data) {
+  const events = [];
+  if (data.has("event_wet")) events.push("wet");
+  if (data.has("event_messed")) events.push("messed");
+  if (data.has("event_dry")) return ["dry"];
+  const legacyEvent = data.get("event");
+  return events.length ? events : [legacyEvent || "wet"];
+}
+
 async function householdForCurrentUser() {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) throw sessionError;
@@ -46,6 +55,7 @@ document.addEventListener("submit", async event => {
   event.stopImmediatePropagation();
 
   const form = event.target;
+  form.dataset.logFixHandlesMultiEvent = "true";
   const button = form.querySelector("button[type='submit']");
   if (button) {
     button.disabled = true;
@@ -56,11 +66,10 @@ document.addEventListener("submit", async event => {
     const { householdId, userId } = await householdForCurrentUser();
     const data = new FormData(form);
     const changedAt = data.get("changed_at") || new Date().toISOString();
-    const row = {
+    const baseRow = {
       household_id: householdId,
       diaper_id: data.get("diaper_id") || null,
       insert_ids: data.getAll("insert_ids").filter(Boolean),
-      event: data.get("event"),
       happened_at: toIso(changedAt),
       changed_at: toIso(changedAt),
       put_on_at: toIso(data.get("put_on_at")),
@@ -71,19 +80,28 @@ document.addEventListener("submit", async event => {
       notes: data.get("notes").trim(),
       created_by: userId
     };
+    const events = selectedEvents(data);
+    const rows = events.map(name => ({
+      ...baseRow,
+      event: name,
+      notes: events.length > 1 ? `${baseRow.notes}${baseRow.notes ? " " : ""}(same change: wet and messed)` : baseRow.notes
+    }));
 
-    let { error } = await supabase.from("logs").insert(row);
+    let { error } = await supabase.from("logs").insert(rows);
     if (error && /insert_ids|changed_at|subcategory/i.test(error.message || "")) {
-      const legacyRow = { ...row };
-      delete legacyRow.insert_ids;
-      delete legacyRow.changed_at;
-      delete legacyRow.subcategory;
-      const fallback = await supabase.from("logs").insert(legacyRow);
+      const legacyRows = rows.map(row => {
+        const legacyRow = { ...row };
+        delete legacyRow.insert_ids;
+        delete legacyRow.changed_at;
+        delete legacyRow.subcategory;
+        return legacyRow;
+      });
+      const fallback = await supabase.from("logs").insert(legacyRows);
       error = fallback.error;
     }
     if (error) throw error;
 
-    showToast("Log saved.");
+    showToast(events.length > 1 ? "Wet and messed log saved." : "Log saved.");
     window.setTimeout(() => window.location.reload(), 700);
   } catch (error) {
     console.error("Daily log save failed", error);
