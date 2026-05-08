@@ -10,7 +10,7 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "../assets/app-icon.png",
+      "src": "../assets/sidebar-wag-wag.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
