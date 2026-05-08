@@ -1,0 +1,133 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const starterItems = [
+  ["InControl", "Contour Washable Boosters", "2 pack", "cloth_insert", 2, 2, 0],
+  ["InControl", "Bamboo Contour Booster Pads", "3 pack", "cloth_insert", 3, 3, 0],
+  ["ThreadedArmor", "Adult Cotton Fitted Snap Diaper", "Medium", "cloth", 1, 1, 0],
+  ["ThreadedArmor", "Adult Microfiber Booster Pads", "4 pack", "cloth_insert", 4, 4, 0],
+  ["ThreadedArmor", "Harmony Nighttime Fitted Cloth Diaper", "Medium", "cloth", 1, 1, 0],
+  ["NorthShore", "Champion XD Washable Underpad", "Large 33x35 in.", "underpad", 1, 1, 0],
+  ["Unknown", "Adult Cloth Diaper Inserts", "Birdseye / Large / 4 pack", "cloth_insert", 4, 4, 11.88],
+  ["LeakMaster", "Adult All-In-One Cloth Diaper", "Medium", "cloth", 1, 1, 36.51],
+  ["EcoAble", "Pocket Cloth Diaper 2.0 Day & Night Set", "Small / Wolf", "cloth", 1, 1, 62.99],
+  ["ThreadedArmor", "Adult Diaper Step-up Insert", "S/M", "cloth_insert", 1, 1, 14.95],
+  ["ThreadedArmor", "Limited Release: Grimoire Protective Brief", "Medium", "cloth", 1, 1, 69.99],
+  ["ThreadedArmor", "Limited Release: Sweater Weather Protective Brief", "Medium", "cloth", 1, 1, 69.99],
+  ["ThreadedArmor", "Protective Briefs with Snaps", "White / Medium", "cloth", 1, 1, 64.99],
+  ["InControl", "BeDry EliteCare Premium Incontinence Briefs", "Case", "disposable", 2, 0, 0],
+  ["InControl", "Active Air Incontinence Briefs", "Case", "disposable", 1, 0, 0],
+  ["ABU", "BeddyByes", "Medium / case", "disposable", 80, 0, 225],
+].map(([brand, style, size, item_type, stock_count, clean_count, purchase_price]) => ({ brand, style, size, item_type, stock_count, clean_count, purchase_price }));
+
+const itemTypes = {
+  disposable: "Disposable diaper",
+  disposable_insert: "Disposable insert",
+  cloth: "Cloth diaper",
+  cloth_insert: "Cloth insert",
+  underpad: "Underpad"
+};
+
+const subcategories = [
+  ["daytime", "Daytime"],
+  ["while_sleeping", "While sleeping"],
+  ["before_bed", "Before bed"],
+  ["morning_change", "Morning change"],
+  ["night_change", "Night change"],
+  ["leaked_in_bed", "Leaked in bed"],
+  ["leaked_while_awake", "Leaked while awake"],
+  ["night_accident", "Night accident"],
+  ["day_accident", "Day accident"]
+];
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
+function money(value) { return `$${Number(value || 0).toFixed(2)}`; }
+function toast(message) { const toastEl = document.getElementById("toast"); if (!toastEl) return; toastEl.textContent = message; toastEl.classList.add("show"); setTimeout(() => toastEl.classList.remove("show"), 3200); }
+function dateTimeLocal(value = new Date()) { const date = value instanceof Date ? value : new Date(value); const offset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - offset).toISOString().slice(0, 16); }
+
+async function loadContext() {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  if (!session) return null;
+  const { data: memberships } = await supabase.from("household_members").select("*, households(*)").eq("user_id", session.user.id).eq("status", "active");
+  const member = memberships?.[0];
+  if (!member) return null;
+  const household = member.households;
+  const isOwner = member.role === "owner" || household.owner_id === session.user.id;
+  const [diapers, logs, expenses] = await Promise.all([
+    supabase.from("diapers").select("*").eq("household_id", household.id).order("created_at", { ascending: false }),
+    supabase.from("logs").select("*, diapers(brand, style, size, item_type, purchase_price)").eq("household_id", household.id).order("happened_at", { ascending: false }),
+    supabase.from("expenses").select("*").eq("household_id", household.id).order("expense_date", { ascending: false })
+  ]);
+  return { session, member, household, isOwner, diapers: diapers.data || [], logs: logs.data || [], expenses: expenses.data || [] };
+}
+
+function logUsesItem(log, id) { return log.diaper_id === id || (Array.isArray(log.insert_ids) && log.insert_ids.includes(id)); }
+function dirtyCount(ctx, id) { const cutoff = Date.now() - 48 * 3600000; return ctx.logs.filter(log => logUsesItem(log, id) && new Date(log.changed_at || log.happened_at).getTime() >= cutoff).length; }
+function cleanCount(ctx, item) { return Math.max(0, Number(item.clean_count ?? item.stock_count ?? 0) - dirtyCount(ctx, item.id)); }
+function option(item, ctx) { const clean = ["cloth", "cloth_insert", "underpad"].includes(item.item_type) ? ` - ${cleanCount(ctx, item)} clean` : ""; return `<option value="${item.id}" ${clean.startsWith(" - 0") ? "disabled" : ""}>${esc(item.brand)} ${esc(item.style)} (${esc(item.size || itemTypes[item.item_type])}${esc(clean)})</option>`; }
+
+function logFields(ctx) {
+  const shells = ctx.diapers.filter(d => ["cloth", "underpad"].includes(d.item_type));
+  const inserts = ctx.diapers.filter(d => d.item_type === "cloth_insert");
+  const last = ctx.logs[0]?.changed_at || ctx.logs[0]?.happened_at || new Date();
+  return `<div class="form-grid"><label>What happened<select name="event"><option value="wet">Wet</option><option value="messed">Messed</option><option value="dry">Dry</option></select></label><label>When changed<input name="changed_at" type="datetime-local" value="${dateTimeLocal()}"></label><label>Put on at<input name="put_on_at" type="datetime-local" value="${dateTimeLocal(last)}"></label><label>Day / Night<select name="day_night"><option value="auto">Auto</option><option value="day">Day</option><option value="before_bed">Before bed</option><option value="night">Night</option><option value="morning">Morning change</option></select></label><label>Cloth diaper<select name="diaper_id" required>${shells.map(item => option(item, ctx)).join("")}</select></label><label>Inserts / boosters<select name="insert_ids" multiple size="5">${inserts.map(item => option(item, ctx)).join("")}</select></label><label>Subcategory<select name="subcategory">${subcategories.map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}</select></label><label>Notes<textarea name="notes"></textarea></label></div><div class="pill-row"><label><span><input type="checkbox" name="leaked"> Leaked</span></label><label><span><input type="checkbox" name="accident"> Accident</span></label></div>`;
+}
+
+function stat(title, value, sub) { return `<article class="card"><h3>${esc(title)}</h3><h2>${esc(value)}</h2><p>${esc(sub)}</p></article>`; }
+function itemCard(ctx, item) { const clean = cleanCount(ctx, item); const dirty = dirtyCount(ctx, item.id); const uses = ctx.logs.filter(log => logUsesItem(log, item.id)); const leaks = uses.filter(log => log.leaked).length; const messes = uses.filter(log => log.event === "messed").length; const cpw = uses.length ? Number(item.purchase_price || 0) / uses.length : Number(item.purchase_price || 0); return `<div class="item"><div class="item-head"><div><h4>${esc(item.brand)} ${esc(item.style)}</h4><p>${esc(item.size || "No size")} - ${uses.length} wears, ${leaks} leaks, ${messes} messes</p></div><strong>${money(cpw)}</strong></div><div class="pill-row"><span class="pill owner">${clean} clean</span><span class="pill alert">${dirty} dirty</span><span class="pill">${Number(item.stock_count || 0)} owned</span></div></div>`; }
+function logItem(log) { return `<div class="item"><div class="item-head"><div><h4>${esc(log.event)} on ${new Date(log.changed_at || log.happened_at).toLocaleString()}</h4><p>${esc(log.diapers ? `${log.diapers.brand} ${log.diapers.style}` : "No diaper selected")}</p></div></div><div class="pill-row">${log.subcategory ? `<span class="pill">${esc(log.subcategory.replaceAll("_", " "))}</span>` : ""}${log.leaked ? `<span class="pill alert">leaked</span>` : ""}${log.accident ? `<span class="pill alert">accident</span>` : ""}</div></div>`; }
+
+async function saveClothWear(event, ctx) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const diaper = ctx.diapers.find(item => item.id === data.get("diaper_id"));
+  if (!diaper || cleanCount(ctx, diaper) <= 0) return toast("No clean cloth diapers available for that style.");
+  const changedAt = data.get("changed_at") || dateTimeLocal();
+  const row = { household_id: ctx.household.id, diaper_id: data.get("diaper_id"), insert_ids: data.getAll("insert_ids").filter(Boolean), event: data.get("event"), happened_at: new Date(changedAt).toISOString(), changed_at: new Date(changedAt).toISOString(), put_on_at: data.get("put_on_at") ? new Date(data.get("put_on_at")).toISOString() : null, day_night: data.get("day_night"), subcategory: data.get("subcategory"), leaked: data.has("leaked"), accident: data.has("accident"), notes: data.get("notes")?.trim() || "", created_by: ctx.session.user.id };
+  const button = form.querySelector("button[type='submit']");
+  if (button) { button.disabled = true; button.textContent = "Saving..."; }
+  const { error } = await supabase.from("logs").insert(row);
+  if (error) { if (button) { button.disabled = false; button.textContent = "Save Cloth Wear"; } return toast(`Cloth wear could not save: ${error.message}`); }
+  toast("Cloth wear saved.");
+  setTimeout(() => location.reload(), 700);
+}
+
+async function renderClothPage() {
+  const ctx = await loadContext();
+  if (!ctx) return;
+  const view = document.getElementById("view");
+  if (!view) return;
+  const cloth = ctx.diapers.filter(d => ["cloth", "cloth_insert", "underpad"].includes(d.item_type));
+  const shells = cloth.filter(d => ["cloth", "underpad"].includes(d.item_type));
+  const inserts = cloth.filter(d => d.item_type === "cloth_insert");
+  const clean = shells.reduce((sum, item) => sum + cleanCount(ctx, item), 0);
+  const dirty = shells.reduce((sum, item) => sum + dirtyCount(ctx, item.id), 0);
+  const wears = ctx.logs.filter(log => cloth.some(item => logUsesItem(log, item.id))).length;
+  view.innerHTML = `<div class="grid three">${stat("Clean Cloth", clean, "ready to wear")}${stat("Dirty Cloth", dirty, "returns after 48 hours")}${stat("Cloth Wears", wears, "saved changes")}</div>${ctx.isOwner ? `<article class="card" style="margin-top:14px"><h3>Log Cloth Wear</h3><p>Choose the cloth diaper first, then select any inserts or boosters used with it.</p><form id="enhancedClothWearForm" class="grid" style="margin-top:12px">${logFields(ctx)}<button class="btn fox" type="submit">Save Cloth Wear</button></form></article>` : ""}<section class="grid two" style="margin-top:14px"><article class="card"><h3>Cloth Diapers</h3><div class="list" style="margin-top:12px">${shells.map(item => itemCard(ctx, item)).join("") || `<div class="empty">No cloth diapers yet.</div>`}</div></article><article class="card"><h3>Cloth Inserts</h3><div class="list" style="margin-top:12px">${inserts.map(item => itemCard(ctx, item)).join("") || `<div class="empty">No cloth inserts yet.</div>`}</div></article><article class="card"><h3>Recent Cloth Wears</h3><div class="list" style="margin-top:12px">${ctx.logs.filter(log => cloth.some(item => logUsesItem(log, item.id))).slice(0, 12).map(logItem).join("") || `<div class="empty">No cloth wears logged yet.</div>`}</div></article><article class="card"><h3>Cloth Cost Per Wear</h3><div class="list" style="margin-top:12px">${cloth.map(item => itemCard(ctx, item)).join("") || `<div class="empty">No cloth cost data yet.</div>`}</div></article></section>`;
+  document.getElementById("enhancedClothWearForm")?.addEventListener("submit", event => saveClothWear(event, ctx));
+}
+
+async function importStarterItems(ctx) { const keys = new Set(ctx.diapers.map(item => `${item.brand}|${item.style}|${item.size}|${item.item_type}`.toLowerCase())); const rows = starterItems.filter(item => !keys.has(`${item.brand}|${item.style}|${item.size}|${item.item_type}`.toLowerCase())).map(item => ({ ...item, household_id: ctx.household.id })); if (!rows.length) return toast("Starter items are already imported."); const { error } = await supabase.from("diapers").insert(rows); if (error) return toast(`Starter import failed: ${error.message}`); toast(`Imported ${rows.length} starter items.`); setTimeout(() => location.reload(), 700); }
+async function enhanceInventory() { const ctx = await loadContext(); if (!ctx?.isOwner || document.getElementById("starterImportBtn")) return; const view = document.getElementById("view"); const firstCard = view?.querySelector(".card"); if (!firstCard) return; firstCard.insertAdjacentHTML("afterend", `<article class="card" style="margin-top:14px"><h3>Starter Import</h3><p>Add the saved cloth diapers, inserts, disposables, and supplies list without duplicating existing matching items.</p><button class="btn sky" id="starterImportBtn" type="button">Import Starter Items</button></article>`); document.getElementById("starterImportBtn").addEventListener("click", () => importStarterItems(ctx)); }
+
+async function enhanceTrends() {
+  const ctx = await loadContext();
+  if (!ctx || document.getElementById("cloudFullTrendCards")) return;
+  const day = ctx.logs.filter(log => !["while_sleeping", "night_change", "night_accident"].includes(log.subcategory) && log.day_night !== "night");
+  const night = ctx.logs.filter(log => ["while_sleeping", "night_change", "night_accident"].includes(log.subcategory) || log.day_night === "night");
+  const cloth = ctx.diapers.filter(d => ["cloth", "cloth_insert", "underpad"].includes(d.item_type));
+  const clothRows = cloth.map(item => { const uses = ctx.logs.filter(log => logUsesItem(log, item.id)).length; const cpw = uses ? Number(item.purchase_price || 0) / uses : Number(item.purchase_price || 0); return `<div class="bar-row"><span>${esc(item.brand)} ${esc(item.style)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, Math.min(100, cpw))}%"></div></div><strong>${money(cpw)}</strong></div>`; }).join("");
+  document.getElementById("view")?.insertAdjacentHTML("beforeend", `<section id="cloudFullTrendCards" class="grid two" style="margin-top:14px"><article class="card"><h3>Day and Night Events</h3><div class="bars"><div class="bar-row"><span>Day wet</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, day.filter(l => l.event === "wet").length * 12)}%"></div></div><strong>${day.filter(l => l.event === "wet").length}</strong></div><div class="bar-row"><span>Day messed</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, day.filter(l => l.event === "messed").length * 12)}%"></div></div><strong>${day.filter(l => l.event === "messed").length}</strong></div><div class="bar-row"><span>Night wet</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, night.filter(l => l.event === "wet").length * 12)}%"></div></div><strong>${night.filter(l => l.event === "wet").length}</strong></div><div class="bar-row"><span>Night messed</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, night.filter(l => l.event === "messed").length * 12)}%"></div></div><strong>${night.filter(l => l.event === "messed").length}</strong></div></div></article><article class="card"><h3>Cloth Cost Per Wear</h3><div class="bars">${clothRows || `<div class="empty">No cloth items yet.</div>`}</div></article></section>`);
+}
+
+let lastPage = "";
+async function routeEnhancements() { const title = document.querySelector(".topbar h2")?.textContent.trim(); if (!title || title === lastPage) return; lastPage = title; if (title === "Cloth Diapers") await renderClothPage(); if (title === "Inventory") await enhanceInventory(); if (title === "Trends") await enhanceTrends(); }
+new MutationObserver(routeEnhancements).observe(document.getElementById("app"), { childList: true, subtree: true });
+routeEnhancements();
