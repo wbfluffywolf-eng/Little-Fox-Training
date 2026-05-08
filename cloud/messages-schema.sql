@@ -6,10 +6,14 @@ create table if not exists public.messages (
   id uuid primary key default gen_random_uuid(),
   household_id uuid not null references public.households(id) on delete cascade,
   sender_id uuid not null references auth.users(id) on delete cascade,
+  recipient_id uuid references auth.users(id) on delete cascade,
   diaper_id uuid references public.diapers(id) on delete set null,
   body text not null check (char_length(trim(body)) between 1 and 1000),
   created_at timestamptz not null default now()
 );
+
+alter table public.messages
+  add column if not exists recipient_id uuid references auth.users(id) on delete cascade;
 
 alter table public.messages enable row level security;
 
@@ -59,11 +63,28 @@ $$;
 drop policy if exists messages_select_allowed on public.messages;
 create policy messages_select_allowed on public.messages for select using (
   public.can_view_household(household_id, 'messages')
+  and (
+    recipient_id is null
+    or recipient_id = auth.uid()
+    or sender_id = auth.uid()
+    or public.is_household_owner(household_id)
+  )
 );
 
 drop policy if exists messages_insert_allowed on public.messages;
 create policy messages_insert_allowed on public.messages for insert with check (
-  sender_id = auth.uid() and public.can_send_message(household_id)
+  sender_id = auth.uid()
+  and public.can_send_message(household_id)
+  and (
+    recipient_id is null
+    or exists (
+      select 1
+      from public.household_members
+      where household_id = messages.household_id
+        and user_id = recipient_id
+        and status = 'active'
+    )
+  )
 );
 
 drop policy if exists messages_update_owner on public.messages;
