@@ -1,0 +1,19 @@
+{
+  "name": "Little Fox Training",
+  "short_name": "Little Fox",
+  "description": "Cloud diaper inventory, daily log, cloth tracking, trends, expenses, and friend view.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fffaf4",
+  "theme_color": "#26313a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "../assets/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
