@@ -109,6 +109,7 @@ function uniqueItems(items) {
 
 function removeOldPresetCards() {
   document.querySelectorAll(".card").forEach(card => {
+    if (card.id === "unifiedPresetCard") return;
     const title = card.querySelector("h3")?.textContent.trim();
     if (["Quick Add Preset", "More Product Presets", "More Disposable Presets"].includes(title)) card.remove();
   });
