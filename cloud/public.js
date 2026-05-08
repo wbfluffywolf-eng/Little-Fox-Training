@@ -2,6 +2,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const profileAvatarKey = "littleFoxSocialAvatar";
+const avatarOptions = [
+  ["need-diaper", "../assets/profile-need-diaper.png", "Need diaper"],
+  ["face-cover", "../assets/profile-face-cover.png", "Shy"],
+  ["oh-no", "../assets/profile-oh-no.png", "Oh no"],
+  ["wag-wag", "../assets/profile-wag-wag.png", "Wag wag"],
+  ["ych", "../assets/profile-ych.png", "YCH"],
+  ["heart", "../assets/profile-heart.png", "Heart"]
+].map(([id, src, label]) => ({ id, src, label }));
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -25,6 +34,37 @@ function publicName(user) {
     user.user_metadata?.name ||
     user.email?.split("@")[0] ||
     "Little Fox";
+}
+
+function selectedAvatarId() {
+  const saved = localStorage.getItem(profileAvatarKey);
+  return avatarOptions.some(option => option.id === saved) ? saved : "wag-wag";
+}
+
+function avatarSrc(id) {
+  return avatarOptions.find(option => option.id === id)?.src || avatarOptions[3].src;
+}
+
+function avatarPickerHtml(ctx) {
+  const selected = selectedAvatarId();
+  return `
+    <article class="card social-profile-card">
+      <div class="social-profile-head">
+        <img class="social-avatar large" src="${esc(avatarSrc(selected))}" alt="">
+        <div>
+          <h3>Social Profile</h3>
+          <p>${esc(publicName(ctx.session.user))} posts with this profile picture.</p>
+        </div>
+      </div>
+      <div class="avatar-grid" aria-label="Choose profile picture">
+        ${avatarOptions.map(option => `
+          <button class="avatar-choice ${option.id === selected ? "active" : ""}" type="button" data-avatar-choice="${esc(option.id)}" title="${esc(option.label)}">
+            <img src="${esc(option.src)}" alt="${esc(option.label)}">
+          </button>
+        `).join("")}
+      </div>
+    </article>
+  `;
 }
 
 async function loadPublicFeed() {
@@ -57,9 +97,12 @@ function postHtml(ctx, post) {
   return `
     <div class="item">
       <div class="item-head">
-        <div>
-          <h4>${esc(post.author_name || "Little Fox")}</h4>
-          <p>${esc(new Date(post.created_at).toLocaleString())}</p>
+        <div class="post-author">
+          <img class="social-avatar" src="${esc(avatarSrc(post.author_avatar))}" alt="">
+          <div>
+            <h4>${esc(post.author_name || "Little Fox")}</h4>
+            <p>${esc(new Date(post.created_at).toLocaleString())}</p>
+          </div>
         </div>
         <span class="pill ${hasPawed ? "owner" : "viewer"}">${paws.length} paws</span>
       </div>
@@ -77,8 +120,8 @@ async function renderPublic() {
   if (!view) return;
   const title = document.querySelector(".topbar h2");
   const subtitle = document.querySelector(".topbar p");
-  if (title) title.textContent = "Public";
-  if (subtitle) subtitle.textContent = "Community posts from people using the app";
+  if (title) title.textContent = "Social";
+  if (subtitle) subtitle.textContent = "Public posts and profile pictures";
   document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.publicTab === "true"));
 
   const ctx = await loadPublicFeed();
@@ -92,6 +135,7 @@ async function renderPublic() {
   }
 
   view.innerHTML = `
+    ${avatarPickerHtml(ctx)}
     <article class="card">
       <h3>Post to Public</h3>
       <form id="publicPostForm" class="grid" style="margin-top:12px">
@@ -106,6 +150,12 @@ async function renderPublic() {
       </div>
     </article>
   `;
+  view.querySelectorAll("[data-avatar-choice]").forEach(button => {
+    button.addEventListener("click", () => {
+      localStorage.setItem(profileAvatarKey, button.dataset.avatarChoice);
+      renderPublic();
+    });
+  });
   document.getElementById("publicPostForm")?.addEventListener("submit", event => savePublicPost(event, ctx));
   view.querySelectorAll("[data-paw-post]").forEach(button => {
     button.addEventListener("click", () => togglePaw(button.dataset.pawPost, ctx));
@@ -124,11 +174,18 @@ async function savePublicPost(event, ctx) {
   const button = form.querySelector("button[type='submit']");
   button.disabled = true;
   button.textContent = "Posting...";
-  const { error } = await supabase.from("public_posts").insert({
+  const post = {
     author_id: ctx.session.user.id,
     author_name: publicName(ctx.session.user),
+    author_avatar: selectedAvatarId(),
     body
-  });
+  };
+  let { error } = await supabase.from("public_posts").insert(post);
+  if (error && /author_avatar/i.test(error.message || "")) {
+    delete post.author_avatar;
+    const fallback = await supabase.from("public_posts").insert(post);
+    error = fallback.error;
+  }
   if (error) {
     button.disabled = false;
     button.textContent = "Post";
@@ -168,7 +225,7 @@ function injectPublicTab() {
   button.className = "tab";
   button.type = "button";
   button.dataset.publicTab = "true";
-  button.textContent = "Public";
+  button.textContent = "Social";
   const messages = tabs.querySelector('[data-tab="messages"]');
   const settings = tabs.querySelector('[data-tab="settings"]');
   tabs.insertBefore(button, messages || settings || null);
