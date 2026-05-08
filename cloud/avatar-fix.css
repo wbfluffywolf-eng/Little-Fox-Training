@@ -1,0 +1,13 @@
+.social-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.social-avatar.large {
+  width: 64px;
+  height: 64px;
+}
+
+.avatar-choice img {
+  height: 40px;
+}
