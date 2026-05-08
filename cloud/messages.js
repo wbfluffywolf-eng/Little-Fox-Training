@@ -55,14 +55,27 @@ function optionHtml(item) {
   return `<option value="${item.id}">${esc(item.brand)} ${esc(item.style)}${item.size ? ` (${esc(item.size)})` : ""}</option>`;
 }
 
+function memberName(ctx, userId) {
+  const member = ctx.members.find(row => row.user_id === userId);
+  if (userId === ctx.session.user.id) return ctx.session.user.email;
+  return member?.invite_email || "Household member";
+}
+
+function recipientOptions(ctx) {
+  return ctx.members
+    .filter(member => member.user_id && member.user_id !== ctx.session.user.id && member.status === "active")
+    .map(member => `<option value="${esc(member.user_id)}">${esc(member.invite_email || "Household member")}</option>`)
+    .join("");
+}
+
 function messageItem(ctx, message) {
-  const member = ctx.members.find(row => row.user_id === message.sender_id);
-  const sender = member?.invite_email || (message.sender_id === ctx.session.user.id ? ctx.session.user.email : "Household member");
+  const sender = memberName(ctx, message.sender_id);
+  const recipient = message.recipient_id ? memberName(ctx, message.recipient_id) : "Everyone";
   const diaper = message.diapers ? `${message.diapers.brand} ${message.diapers.style}${message.diapers.size ? ` (${message.diapers.size})` : ""}` : "";
   return `
     <div class="item">
       <div class="item-head">
-        <div><h4>${esc(sender)}</h4><p>${esc(new Date(message.created_at).toLocaleString())}</p></div>
+        <div><h4>${esc(sender)} to ${esc(recipient)}</h4><p>${esc(new Date(message.created_at).toLocaleString())}</p></div>
         ${diaper ? `<span class="pill viewer">diaper ping</span>` : ""}
       </div>
       <p>${esc(message.body)}</p>
@@ -93,8 +106,9 @@ async function renderMessages() {
         <h3>Send Message</h3>
         <form id="messageForm" class="grid" style="margin-top:12px">
           <div class="form-grid">
+            <label>Send to<select name="recipient_id"><option value="">Everyone</option>${recipientOptions(ctx)}</select></label>
             <label class="field-full">Message<textarea name="body" required maxlength="1000" placeholder="Write a household message"></textarea></label>
-            <label>Optional diaper ping<select name="diaper_id"><option value="">No diaper ping</option>${ctx.diapers.map(optionHtml).join("")}</select></label>
+            <label>Optional diaper request<select name="diaper_id"><option value="">No diaper request</option>${ctx.diapers.map(optionHtml).join("")}</select></label>
           </div>
           <button class="btn fox" type="submit">Send Message</button>
         </form>
@@ -118,6 +132,7 @@ async function saveMessage(event, ctx) {
   const { error } = await supabase.from("messages").insert({
     household_id: ctx.household.id,
     sender_id: ctx.session.user.id,
+    recipient_id: data.get("recipient_id") || null,
     body: data.get("body").trim(),
     diaper_id: data.get("diaper_id") || null
   });
