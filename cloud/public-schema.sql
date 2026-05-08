@@ -2,9 +2,13 @@ create table if not exists public.public_posts (
   id uuid primary key default gen_random_uuid(),
   author_id uuid not null references auth.users(id) on delete cascade,
   author_name text not null default 'Little Fox',
+  author_avatar text,
   body text not null check (char_length(trim(body)) between 1 and 1500),
   created_at timestamptz not null default now()
 );
+
+alter table public.public_posts
+  add column if not exists author_avatar text;
 
 create table if not exists public.public_post_paws (
   id uuid primary key default gen_random_uuid(),
