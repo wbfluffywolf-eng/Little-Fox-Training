@@ -3,8 +3,59 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-let catalog = [];
-let ready = false;
+const typeLabels = {
+  disposable: "Disposable diaper",
+  disposable_insert: "Disposable insert",
+  cloth: "Cloth diaper",
+  cloth_insert: "Cloth insert",
+  underpad: "Underpad"
+};
+
+const catalog = [
+  ["disposable", "NorthShore", "MegaMax", "Medium / bag", 10, 0],
+  ["disposable", "NorthShore", "Supreme", "Medium / bag", 15, 0],
+  ["disposable", "NorthShore", "GoSupreme Pull-On", "Medium / bag", 14, 0],
+  ["disposable", "InControl", "BeDry EliteCare Premium Incontinence Briefs", "Small / case of 36", 36, 0],
+  ["disposable", "InControl", "BeDry EliteCare Premium Incontinence Briefs", "Medium / case of 36", 36, 0],
+  ["disposable", "InControl", "BeDry EliteCare Premium Incontinence Briefs", "Large / case of 36", 36, 0],
+  ["disposable", "InControl", "BeDry Premium Incontinence Briefs", "Medium / case of 48", 48, 0],
+  ["disposable", "InControl", "BeDry Night Premium Incontinence Briefs", "Medium / case of 36", 36, 0],
+  ["disposable", "InControl", "Active Air Incontinence Briefs", "Medium / case of 60", 60, 0],
+  ["disposable", "Tykables", "Overnights", "Medium / bag", 10, 0],
+  ["disposable", "Tykables", "Little Builders", "Medium / bag", 10, 0],
+  ["disposable", "ABU", "LittlePawz", "Medium / bag", 10, 0],
+  ["disposable", "ABU", "BeddyByes", "Medium / case", 80, 225],
+  ["disposable", "Potty Training Dropouts", "BeddyByes", "Medium / case of 40", 40, 225],
+  ["disposable", "Little Northwood", "Little Quest", "Medium / sample", 2, 0],
+  ["disposable", "LNGU", "Honey Tales", "Medium / pack of 10", 10, 31.99],
+  ["disposable", "LNGU", "Big Ears Baby", "Medium / case of 40", 40, 0],
+  ["disposable", "LNGU", "Dragoonz", "Medium / case of 40", 40, 0],
+  ["disposable_insert", "NorthShore", "Booster Pad", "Regular / pack", 30, 0],
+  ["disposable_insert", "ABU", "PowerUps Booster Pads", "Regular / pack", 20, 0],
+  ["disposable_insert", "InControl", "Booster Pads - Unscented", "One Size / case of 180", 180, 0],
+  ["cloth", "ThreadedArmor", "Adult Cotton Fitted Snap Diaper", "Medium", 1, 0],
+  ["cloth", "ThreadedArmor", "Harmony Nighttime Fitted Cloth Diaper", "Medium", 1, 0],
+  ["cloth", "ThreadedArmor", "Protective Briefs with Snaps", "White / Medium", 1, 64.99],
+  ["cloth", "ThreadedArmor", "Limited Release: Grimoire Protective Brief", "Medium", 1, 69.99],
+  ["cloth", "ThreadedArmor", "Limited Release: Sweater Weather Protective Brief", "Medium", 1, 69.99],
+  ["cloth", "EcoAble", "Pocket Cloth Diaper 2.0 Day & Night Set", "Small / Wolf", 1, 62.99],
+  ["cloth", "LeakMaster", "Adult All-In-One Cloth Diaper", "Medium", 1, 36.51],
+  ["cloth", "InControl", "Harmony Nighttime Fitted Cloth Diaper", "Medium", 1, 0],
+  ["cloth_insert", "ThreadedArmor", "Adult Diaper Step-up Insert", "S/M", 1, 14.95],
+  ["cloth_insert", "ThreadedArmor", "Adult Microfiber Booster Pads", "4 pack", 4, 0],
+  ["cloth_insert", "EcoAble", "Cloth Diaper Inserts", "Large / 4 pack", 4, 0],
+  ["cloth_insert", "InControl", "Bamboo Contour Booster Pads", "3 pack", 3, 0],
+  ["cloth_insert", "InControl", "Adult Microfiber Booster Pads", "4 pack", 4, 0],
+  ["underpad", "NorthShore", "Champion XD Washable Underpad", "Large 33x35 in.", 1, 0],
+  ["underpad", "ThreadedArmor", "Heavy-Duty Mesh Laundry Bag", "Cloth diaper laundry", 1, 9.95]
+].map(([item_type, brand, style, size, stock_count, purchase_price]) => ({
+  item_type,
+  brand,
+  style,
+  size,
+  stock_count,
+  purchase_price
+}));
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -33,88 +84,6 @@ async function loadOwnerContext() {
   return isOwner ? { household } : null;
 }
 
-function parseOptionLabel(label) {
-  const clean = String(label || "").replace(/\s+\([^)]*\)$/, "").trim();
-  const parts = clean.split(" - ");
-  return {
-    brand: parts[0]?.trim() || "Unknown",
-    style: parts.slice(1).join(" - ").trim() || clean || "Preset"
-  };
-}
-
-function currentSelect(form, name) {
-  const field = form.elements[name];
-  if (!field) return "";
-  if (field.tagName === "SELECT") return field.options[field.selectedIndex]?.textContent.trim() || field.value;
-  return field.value || "";
-}
-
-function collectFromMainForm(form) {
-  const collected = [];
-  const typeSelect = form.elements.item_type;
-  const presetSelect = form.elements.preset;
-  if (!typeSelect || !presetSelect) return collected;
-  [...typeSelect.options].forEach(typeOption => {
-    typeSelect.value = typeOption.value;
-    typeSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    [...presetSelect.options].forEach(option => {
-      presetSelect.value = option.value;
-      presetSelect.dispatchEvent(new Event("change", { bubbles: true }));
-      const label = parseOptionLabel(option.textContent);
-      collected.push({
-        item_type: typeOption.value,
-        type_label: typeOption.textContent.trim(),
-        brand: label.brand,
-        style: label.style,
-        size: currentSelect(form, "size"),
-        stock_count: Number(form.elements.stock_count?.value || 1),
-        clean_count: Number(form.elements.clean_count?.value || 0),
-        purchase_price: Number(form.elements.purchase_price?.value || 0)
-      });
-    });
-  });
-  return collected;
-}
-
-function collectFromExtraForm(form) {
-  const collected = [];
-  const presetSelect = form.elements.extra_preset;
-  if (!presetSelect) return collected;
-  [...presetSelect.options].forEach(option => {
-    presetSelect.value = option.value;
-    presetSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    const label = parseOptionLabel(option.textContent);
-    collected.push({
-      item_type: "disposable",
-      type_label: "Disposable diaper",
-      brand: label.brand,
-      style: label.style,
-      size: currentSelect(form, "extra_size"),
-      stock_count: Number(form.elements.extra_stock_count?.value || 1),
-      clean_count: 0,
-      purchase_price: Number(form.elements.extra_purchase_price?.value || 0)
-    });
-  });
-  return collected;
-}
-
-function uniqueItems(items) {
-  const map = new Map();
-  items.forEach(item => {
-    const key = [item.item_type, item.brand, item.style, item.size, item.stock_count].join("|").toLowerCase();
-    if (!map.has(key)) map.set(key, item);
-  });
-  return [...map.values()].sort((a, b) => `${a.brand} ${a.style} ${a.size}`.localeCompare(`${b.brand} ${b.style} ${b.size}`));
-}
-
-function removeOldPresetCards() {
-  document.querySelectorAll(".card").forEach(card => {
-    if (card.id === "unifiedPresetCard") return;
-    const title = card.querySelector("h3")?.textContent.trim();
-    if (["Quick Add Preset", "More Product Presets", "More Disposable Presets"].includes(title)) card.remove();
-  });
-}
-
 function optionList(values) {
   return values.map(value => `<option value="${esc(value)}">${esc(value)}</option>`).join("");
 }
@@ -124,30 +93,32 @@ function packageLabel(item) {
   const lower = `${item.size} ${item.style}`.toLowerCase();
   if (lower.includes("sample")) return `Sample / ${count}`;
   if (lower.includes("case") || count >= 30) return `Case / ${count}`;
-  if (count > 1) return `Bag or pack / ${count}`;
+  if (lower.includes("bag") || lower.includes("pack") || count > 1) return `Bag or pack / ${count}`;
   return "Single item / 1";
 }
 
-function selectedItem(form) {
-  return catalog.find(item =>
-    item.brand === form.elements.brand.value &&
-    `${item.type_label}: ${item.style}` === form.elements.product.value &&
+function matches(form, item) {
+  return item.brand === form.elements.brand.value &&
+    `${typeLabels[item.item_type]}: ${item.style}` === form.elements.product.value &&
     item.size === form.elements.size.value &&
-    packageLabel(item) === form.elements.package.value
-  ) || catalog[0];
+    packageLabel(item) === form.elements.package.value;
+}
+
+function selectedItem(form) {
+  return catalog.find(item => matches(form, item)) || catalog[0];
 }
 
 function refreshProducts(form) {
   const products = [...new Set(catalog
     .filter(item => item.brand === form.elements.brand.value)
-    .map(item => `${item.type_label}: ${item.style}`))];
+    .map(item => `${typeLabels[item.item_type]}: ${item.style}`))];
   form.elements.product.innerHTML = optionList(products);
   refreshSizes(form);
 }
 
 function refreshSizes(form) {
   const sizes = [...new Set(catalog
-    .filter(item => item.brand === form.elements.brand.value && `${item.type_label}: ${item.style}` === form.elements.product.value)
+    .filter(item => item.brand === form.elements.brand.value && `${typeLabels[item.item_type]}: ${item.style}` === form.elements.product.value)
     .map(item => item.size))];
   form.elements.size.innerHTML = optionList(sizes);
   refreshPackages(form);
@@ -157,7 +128,7 @@ function refreshPackages(form) {
   const packages = [...new Set(catalog
     .filter(item =>
       item.brand === form.elements.brand.value &&
-      `${item.type_label}: ${item.style}` === form.elements.product.value &&
+      `${typeLabels[item.item_type]}: ${item.style}` === form.elements.product.value &&
       item.size === form.elements.size.value)
     .map(packageLabel))];
   form.elements.package.innerHTML = optionList(packages);
@@ -169,12 +140,12 @@ function refreshDetails(form) {
   form.elements.stock_count.value = item?.stock_count || 1;
   form.elements.purchase_price.value = Number(item?.purchase_price || 0).toFixed(2);
   form.querySelector("[data-unified-detail]").innerHTML = item
-    ? `<strong>${esc(item.brand)} ${esc(item.style)}</strong><br>${esc(item.type_label)} - ${esc(item.size)} - ${esc(packageLabel(item))}`
+    ? `<strong>${esc(item.brand)} ${esc(item.style)}</strong><br>${esc(typeLabels[item.item_type])} - ${esc(item.size)} - ${esc(packageLabel(item))}`
     : "";
 }
 
 function cardHtml() {
-  const brands = [...new Set(catalog.map(item => item.brand))];
+  const brands = [...new Set(catalog.map(item => item.brand))].sort((a, b) => a.localeCompare(b));
   return `
     <article class="card" id="unifiedPresetCard" style="margin-top:14px">
       <h3>Quick Add Preset</h3>
@@ -200,14 +171,15 @@ async function savePreset(event) {
   const form = event.currentTarget;
   const item = selectedItem(form);
   if (!item) return toast("Choose a preset first.");
-  const cleanCount = ["cloth", "cloth_insert", "underpad"].includes(item.item_type) ? Number(form.elements.stock_count.value || item.stock_count || 0) : 0;
+  const stockCount = Number(form.elements.stock_count.value || item.stock_count || 0);
+  const cleanCount = ["cloth", "cloth_insert", "underpad"].includes(item.item_type) ? stockCount : 0;
   const { error } = await supabase.from("diapers").insert({
     household_id: ctx.household.id,
     brand: item.brand,
     style: item.style,
     item_type: item.item_type,
     size: item.size,
-    stock_count: Number(form.elements.stock_count.value || item.stock_count || 0),
+    stock_count: stockCount,
     clean_count: cleanCount,
     purchase_price: Number(form.elements.purchase_price.value || 0)
   });
@@ -216,25 +188,11 @@ async function savePreset(event) {
   setTimeout(() => location.reload(), 700);
 }
 
-function buildCatalogFromOldForms() {
-  const items = [
-    ...collectFromMainForm(document.getElementById("presetCatalogForm") || document.createElement("form")),
-    ...collectFromExtraForm(document.getElementById("extraPresetForm") || document.createElement("form"))
-  ];
-  catalog = uniqueItems(items);
-}
-
 async function injectUnifiedPreset() {
   const title = document.querySelector(".topbar h2")?.textContent.trim();
-  if (title !== "Inventory") return;
+  if (title !== "Inventory" || document.getElementById("unifiedPresetCard")) return;
   const ctx = await loadOwnerContext();
   if (!ctx) return;
-  if (!ready) {
-    buildCatalogFromOldForms();
-    ready = catalog.length > 0;
-  }
-  removeOldPresetCards();
-  if (!ready || document.getElementById("unifiedPresetCard")) return;
   const view = document.getElementById("view");
   const starter = document.getElementById("starterImportBtn")?.closest(".card");
   const anchor = starter || view?.querySelector(".card");
