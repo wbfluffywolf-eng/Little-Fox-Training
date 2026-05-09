@@ -62,6 +62,30 @@ function optionHtml(item) {
   return `<option value="${item.id}">${esc(item.brand)} ${esc(item.style)}${item.size ? ` (${esc(item.size)})` : ""}</option>`;
 }
 
+function imageFileToDataUrl(file) {
+  if (!file || !file.type.startsWith("image/")) return Promise.resolve("");
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Image could not be read."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Image could not be loaded."));
+      img.onload = () => {
+        const max = 900;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.78));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function memberName(ctx, userId) {
   const member = ctx.members.find(row => row.user_id === userId);
   if (userId === ctx.session.user.id) return ctx.session.user.email;
@@ -133,6 +157,7 @@ function messageItem(ctx, message) {
           <time>${esc(new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</time>
         </div>
         <p>${esc(message.body)}</p>
+        ${message.image_data ? `<img class="message-image" src="${esc(message.image_data)}" alt="Message attachment">` : ""}
         ${diaper ? `<div class="pill-row"><span class="pill viewer">diaper ping</span><span class="pill">${esc(diaper)}</span></div>` : ""}
       </div>
     </div>
@@ -173,10 +198,11 @@ async function renderMessages() {
         <form id="messageForm">
           <div class="message-composer-tools">
             <label>To<select name="recipient_id"><option value="">Everyone</option>${recipientOptions(ctx)}</select></label>
-            <label>Diaper ping<select name="diaper_id"><option value="">None</option>${ctx.diapers.map(optionHtml).join("")}</select></label>
+            <label>Diaper / ping<select name="diaper_id"><option value="">None</option>${ctx.diapers.map(optionHtml).join("")}</select></label>
+            <label class="message-photo-field">Photo<input type="file" name="image" accept="image/*"></label>
           </div>
           <div class="message-send-row">
-            <textarea name="body" required maxlength="1000" rows="2" placeholder="Text a message"></textarea>
+            <textarea name="body" maxlength="1000" rows="2" placeholder="Text a message"></textarea>
             <button class="btn fox" type="submit">Send</button>
           </div>
         </form>
@@ -194,16 +220,32 @@ async function saveMessage(event, ctx) {
   const button = form.querySelector("button[type='submit']");
   button.disabled = true;
   button.textContent = "Sending...";
+  const imageData = await imageFileToDataUrl(data.get("image")).catch(error => {
+    toast(error.message);
+    return "";
+  });
+  const body = String(data.get("body") || "").trim() || (imageData ? "Photo" : "");
+  if (!body) {
+    button.disabled = false;
+    button.textContent = "Send";
+    toast("Add a message or photo before sending.");
+    return;
+  }
   const { error } = await supabase.from("messages").insert({
     household_id: ctx.household.id,
     sender_id: ctx.session.user.id,
     recipient_id: data.get("recipient_id") || null,
-    body: data.get("body").trim(),
-    diaper_id: data.get("diaper_id") || null
+    body,
+    diaper_id: data.get("diaper_id") || null,
+    image_data: imageData || null
   });
   if (error) {
     button.disabled = false;
-    button.textContent = "Send Message";
+    button.textContent = "Send";
+    if (/image_data|schema cache/i.test(error.message || "")) {
+      toast("Run media-schema.sql in Supabase to enable message photos.");
+      return;
+    }
     toast(`Message could not send: ${error.message}`);
     return;
   }
