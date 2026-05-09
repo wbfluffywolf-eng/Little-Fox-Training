@@ -4,6 +4,7 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const selectedKey = "littleFoxSelectedSharedTracker";
 const personalKey = "littleFoxPersonalTracker";
+const forcePersonalKey = "littleFoxForcePersonalTracker";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -34,14 +35,47 @@ function authUserFromRequest(input, init) {
 function sortedMemberships(rows, userId) {
   const selected = sessionStorage.getItem(selectedKey) || "";
   const personal = localStorage.getItem(personalKey) || "";
+  const forcePersonal = sessionStorage.getItem(forcePersonalKey) === "1";
+  const isPersonal = row => row.id === personal || row.role === "owner" || row.households?.owner_id === userId;
   return [...rows].sort((a, b) => {
-    const aSelected = selected && a.id === selected ? 1 : 0;
-    const bSelected = selected && b.id === selected ? 1 : 0;
+    const aPersonal = isPersonal(a) ? 1 : 0;
+    const bPersonal = isPersonal(b) ? 1 : 0;
+    if (forcePersonal && aPersonal !== bPersonal) return bPersonal - aPersonal;
+    const aSelected = !forcePersonal && selected && a.id === selected ? 1 : 0;
+    const bSelected = !forcePersonal && selected && b.id === selected ? 1 : 0;
     if (aSelected !== bSelected) return bSelected - aSelected;
-    const aPersonal = a.id === personal || a.role === "owner" || a.households?.owner_id === userId ? 1 : 0;
-    const bPersonal = b.id === personal || b.role === "owner" || b.households?.owner_id === userId ? 1 : 0;
     return bPersonal - aPersonal;
   });
+}
+
+function withoutKeys(row, keys) {
+  const copy = { ...row };
+  keys.forEach(key => delete copy[key]);
+  return copy;
+}
+
+async function insertMemberWithFallback(row) {
+  const attempts = [
+    row,
+    withoutKeys(row, ["can_add_logs"]),
+    withoutKeys(row, ["can_add_logs", "can_view_messages", "can_send_messages"]),
+    withoutKeys(row, ["can_add_logs", "can_view_messages", "can_send_messages", "can_suggest_diaper"]),
+    {
+      household_id: row.household_id,
+      user_id: row.user_id,
+      invite_email: row.invite_email,
+      role: row.role,
+      status: row.status
+    }
+  ];
+  let lastError = null;
+  for (const attempt of attempts) {
+    const { data, error } = await supabase.from("household_members").insert(attempt).select().single();
+    if (!error) return { data, error: null };
+    lastError = error;
+    if (!/column|schema cache|could not find|does not exist/i.test(error.message || "")) break;
+  }
+  return { data: null, error: lastError };
 }
 
 async function ensurePersonalTracker() {
@@ -86,19 +120,7 @@ async function ensurePersonalTracker() {
     can_send_messages: true,
     can_add_logs: true
   };
-  let { data: member, error: memberError } = await supabase
-    .from("household_members")
-    .insert(row)
-    .select()
-    .single();
-  if (memberError && /can_view_messages|can_send_messages/i.test(memberError.message || "")) {
-    const legacyRow = { ...row };
-    delete legacyRow.can_view_messages;
-    delete legacyRow.can_send_messages;
-    const result = await supabase.from("household_members").insert(legacyRow).select().single();
-    member = result.data;
-    memberError = result.error;
-  }
+  const { data: member, error: memberError } = await insertMemberWithFallback(row);
   if (!memberError && member?.id) localStorage.setItem(personalKey, member.id);
 }
 
@@ -193,6 +215,7 @@ async function injectSharedTrackers() {
 document.addEventListener("click", event => {
   const sharedButton = event.target.closest("[data-open-shared-tracker]");
   if (sharedButton) {
+    sessionStorage.removeItem(forcePersonalKey);
     sessionStorage.setItem(selectedKey, sharedButton.dataset.openSharedTracker);
     location.reload();
     return;
@@ -201,6 +224,7 @@ document.addEventListener("click", event => {
   const personalButton = event.target.closest("[data-open-my-tracker]");
   if (personalButton) {
     sessionStorage.removeItem(selectedKey);
+    sessionStorage.setItem(forcePersonalKey, "1");
     location.reload();
   }
 });
