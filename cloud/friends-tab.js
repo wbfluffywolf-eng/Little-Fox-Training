@@ -6,6 +6,7 @@ const selectedKey = "littleFoxSelectedSharedTracker";
 const personalKey = "littleFoxPersonalTracker";
 const forcePersonalKey = "littleFoxForcePersonalTracker";
 const openLogKey = "littleFoxOpenPersonalLog";
+const pendingFriendKey = "littleFoxPendingFriendView";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -205,6 +206,11 @@ async function renderFriends() {
   }
   view.innerHTML = friendListHtml(ctx);
   bindFriendsList(ctx);
+  const pendingFriend = sessionStorage.getItem(pendingFriendKey);
+  if (pendingFriend) {
+    sessionStorage.removeItem(pendingFriendKey);
+    [...view.querySelectorAll("[data-friend-view]")].find(button => button.dataset.friendView === pendingFriend)?.click();
+  }
 }
 
 function bindFriendsList(ctx) {
@@ -276,9 +282,16 @@ function openPendingPersonalLog() {
   tab.click();
 }
 
+function openPendingFriendView() {
+  if (!sessionStorage.getItem(pendingFriendKey)) return;
+  document.querySelector("[data-friends-tab]")?.click();
+}
+
 new MutationObserver(() => {
   injectFriendsTab();
+  openPendingFriendView();
   openPendingPersonalLog();
 }).observe(document.getElementById("app"), { childList: true, subtree: true });
 injectFriendsTab();
+openPendingFriendView();
 openPendingPersonalLog();
