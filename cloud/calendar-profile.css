@@ -1,0 +1,52 @@
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.calendar-weekdays {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-align: center;
+}
+.calendar-grid { margin-top: 8px; }
+.calendar-day {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink);
+  min-height: 74px;
+  padding: 7px;
+  display: grid;
+  align-content: space-between;
+  text-align: left;
+}
+.calendar-day strong { font-size: 20px; line-height: 1; }
+.calendar-day.today {
+  border-color: var(--fox);
+  box-shadow: 0 0 0 2px rgba(232, 114, 38, .18);
+}
+.calendar-day.muted-day { opacity: .46; }
+.calendar-dots { display: flex; gap: 3px; }
+.calendar-dots i,
+.calendar-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.calendar-legend i { margin-right: 4px; }
+.wet { background: var(--sky); }
+.messed { background: var(--fox); }
+.dry { background: var(--mint); }
+.leaked { background: #9b5fb8; }
+.accident { background: var(--danger); }
+
+@media (max-width: 560px) {
+  .calendar-weekdays,
+  .calendar-grid { gap: 4px; }
+  .calendar-day { min-height: 58px; padding: 5px; }
+  .calendar-day strong { font-size: 16px; }
+}
