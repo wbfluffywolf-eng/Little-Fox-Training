@@ -5,6 +5,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const selectedKey = "littleFoxSelectedSharedTracker";
 const personalKey = "littleFoxPersonalTracker";
 const forcePersonalKey = "littleFoxForcePersonalTracker";
+const pendingFriendKey = "littleFoxPendingFriendView";
+
+function defaultToPersonalTracker() {
+  sessionStorage.removeItem(selectedKey);
+  sessionStorage.setItem(forcePersonalKey, "1");
+}
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -215,20 +221,20 @@ async function injectSharedTrackers() {
 document.addEventListener("click", event => {
   const sharedButton = event.target.closest("[data-open-shared-tracker]");
   if (sharedButton) {
-    sessionStorage.removeItem(forcePersonalKey);
-    sessionStorage.setItem(selectedKey, sharedButton.dataset.openSharedTracker);
+    defaultToPersonalTracker();
+    sessionStorage.setItem(pendingFriendKey, sharedButton.dataset.openSharedTracker);
     location.reload();
     return;
   }
 
   const personalButton = event.target.closest("[data-open-my-tracker]");
   if (personalButton) {
-    sessionStorage.removeItem(selectedKey);
-    sessionStorage.setItem(forcePersonalKey, "1");
+    defaultToPersonalTracker();
     location.reload();
   }
 });
 
+defaultToPersonalTracker();
 await ensurePersonalTracker();
 installMembershipSorter();
 new MutationObserver(injectSharedTrackers).observe(document.getElementById("app"), { childList: true, subtree: true });
