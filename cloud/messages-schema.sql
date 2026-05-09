@@ -15,6 +15,9 @@ create table if not exists public.messages (
 alter table public.messages
   add column if not exists recipient_id uuid references auth.users(id) on delete cascade;
 
+alter table public.messages
+  add column if not exists image_data text;
+
 alter table public.messages enable row level security;
 
 create or replace function public.can_view_household(target_household uuid, permission_key text)
