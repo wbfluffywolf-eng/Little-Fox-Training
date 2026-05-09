@@ -4,6 +4,7 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const selectedKey = "littleFoxSelectedSharedTracker";
 const personalKey = "littleFoxPersonalTracker";
+const forcePersonalKey = "littleFoxForcePersonalTracker";
 const openLogKey = "littleFoxOpenPersonalLog";
 
 function esc(value) {
@@ -210,17 +211,20 @@ function bindFriendsList(ctx) {
   const view = document.getElementById("view");
   view.querySelector("[data-friends-my-log]")?.addEventListener("click", () => {
     sessionStorage.removeItem(selectedKey);
+    sessionStorage.setItem(forcePersonalKey, "1");
     sessionStorage.setItem(openLogKey, "1");
     location.reload();
   });
   view.querySelector("[data-friends-my-dashboard]")?.addEventListener("click", () => {
     sessionStorage.removeItem(selectedKey);
+    sessionStorage.setItem(forcePersonalKey, "1");
     location.reload();
   });
   view.querySelectorAll("[data-friend-view]").forEach(button => {
     button.addEventListener("click", async () => {
       const member = ctx.shared.find(row => row.id === button.dataset.friendView);
       if (!member) return;
+      sessionStorage.removeItem(forcePersonalKey);
       const data = await loadFriendData(member);
       view.innerHTML = friendViewHtml(member, data);
       bindFriendView(member);
@@ -264,6 +268,7 @@ function injectFriendsTab() {
 
 function openPendingPersonalLog() {
   if (sessionStorage.getItem(openLogKey) !== "1") return;
+  if (sessionStorage.getItem(forcePersonalKey) === "1") sessionStorage.removeItem(selectedKey);
   if (sessionStorage.getItem(selectedKey)) return;
   const tab = document.querySelector('[data-tab="log"]');
   if (!tab) return;
