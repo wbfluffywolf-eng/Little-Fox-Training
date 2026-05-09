@@ -10,6 +10,9 @@ create table if not exists public.public_posts (
 alter table public.public_posts
   add column if not exists author_avatar text;
 
+alter table public.public_posts
+  add column if not exists image_data text;
+
 create table if not exists public.public_post_paws (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.public_posts(id) on delete cascade,
