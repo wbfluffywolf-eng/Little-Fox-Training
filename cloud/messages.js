@@ -2,6 +2,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const selectedKey = "littleFoxSelectedSharedTracker";
+const personalKey = "littleFoxPersonalTracker";
+const seenKeyPrefix = "littleFoxMessagesSeen";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -28,7 +31,11 @@ async function loadContext() {
     .select("*, households(*)")
     .eq("user_id", session.user.id)
     .eq("status", "active");
-  const member = memberships?.[0];
+  const selectedId = sessionStorage.getItem(selectedKey);
+  const personalId = localStorage.getItem(personalKey);
+  const member = (memberships || []).find(row => row.id === selectedId)
+    || (memberships || []).find(row => row.id === personalId)
+    || memberships?.[0];
   const household = member?.households;
   if (!member || !household) return null;
   const [members, diapers, messages] = await Promise.all([
@@ -68,18 +75,66 @@ function recipientOptions(ctx) {
     .join("");
 }
 
+function seenKey(householdId) {
+  return `${seenKeyPrefix}:${householdId}`;
+}
+
+function newestIncoming(ctx) {
+  return ctx.messages
+    .filter(message => message.sender_id !== ctx.session.user.id)
+    .filter(message => !message.recipient_id || message.recipient_id === ctx.session.user.id)
+    .map(message => message.created_at)
+    .sort()
+    .pop() || "";
+}
+
+function markMessagesSeen(ctx) {
+  const newest = newestIncoming(ctx);
+  if (newest) localStorage.setItem(seenKey(ctx.household.id), newest);
+  updateMessageBadge(ctx);
+}
+
+function hasUnread(ctx) {
+  const newest = newestIncoming(ctx);
+  if (!newest) return false;
+  return newest > (localStorage.getItem(seenKey(ctx.household.id)) || "");
+}
+
+function updateMessageBadge(ctx) {
+  const tab = document.querySelector('[data-tab="messages"]');
+  if (!tab || !ctx) return;
+  tab.classList.toggle("has-unread", hasUnread(ctx));
+  let badge = tab.querySelector(".tab-paw-badge");
+  if (hasUnread(ctx)) {
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "tab-paw-badge";
+      badge.textContent = "\uD83D\uDC3E";
+      badge.setAttribute("aria-label", "New message");
+      tab.appendChild(badge);
+    }
+  } else {
+    badge?.remove();
+  }
+}
+
 function messageItem(ctx, message) {
   const sender = memberName(ctx, message.sender_id);
   const recipient = message.recipient_id ? memberName(ctx, message.recipient_id) : "Everyone";
   const diaper = message.diapers ? `${message.diapers.brand} ${message.diapers.style}${message.diapers.size ? ` (${message.diapers.size})` : ""}` : "";
+  const mine = message.sender_id === ctx.session.user.id;
+  const directed = message.recipient_id && message.recipient_id !== ctx.session.user.id;
   return `
-    <div class="item">
-      <div class="item-head">
-        <div><h4>${esc(sender)} to ${esc(recipient)}</h4><p>${esc(new Date(message.created_at).toLocaleString())}</p></div>
-        ${diaper ? `<span class="pill viewer">diaper ping</span>` : ""}
+    <div class="message-row ${mine ? "mine" : "theirs"}">
+      <div class="message-bubble">
+        <div class="message-meta">
+          <span>${mine ? "You" : esc(sender)}</span>
+          <span>${directed ? `to ${esc(recipient)}` : ""}</span>
+          <time>${esc(new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</time>
+        </div>
+        <p>${esc(message.body)}</p>
+        ${diaper ? `<div class="pill-row"><span class="pill viewer">diaper ping</span><span class="pill">${esc(diaper)}</span></div>` : ""}
       </div>
-      <p>${esc(message.body)}</p>
-      ${diaper ? `<div class="pill-row"><span class="pill">${esc(diaper)}</span></div>` : ""}
     </div>
   `;
 }
@@ -100,26 +155,36 @@ async function renderMessages() {
     view.innerHTML = `<article class="card"><h3>Messages Setup Needed</h3><p>Run the latest Supabase SQL schema update to enable household messages.</p></article>`;
     return;
   }
+  markMessagesSeen(ctx);
+  const messages = [...ctx.messages].reverse();
   view.innerHTML = `
+    <article class="card message-shell">
+      <div class="message-title">
+        <div>
+          <h3>Household Chat</h3>
+          <p>${esc(ctx.household.name || "Shared tracker")}</p>
+        </div>
+        <span class="pill viewer">${ctx.messages.length} messages</span>
+      </div>
+      <div class="message-thread">${messages.map(message => messageItem(ctx, message)).join("") || `<div class="empty">No messages yet.</div>`}</div>
+    </article>
     ${canSend ? `
-      <article class="card">
-        <h3>Send Message</h3>
-        <form id="messageForm" class="grid" style="margin-top:12px">
-          <div class="form-grid">
-            <label>Send to<select name="recipient_id"><option value="">Everyone</option>${recipientOptions(ctx)}</select></label>
-            <label class="field-full">Message<textarea name="body" required maxlength="1000" placeholder="Write a household message"></textarea></label>
-            <label>Optional diaper request<select name="diaper_id"><option value="">No diaper request</option>${ctx.diapers.map(optionHtml).join("")}</select></label>
+      <article class="card message-composer">
+        <form id="messageForm">
+          <div class="message-composer-tools">
+            <label>To<select name="recipient_id"><option value="">Everyone</option>${recipientOptions(ctx)}</select></label>
+            <label>Diaper ping<select name="diaper_id"><option value="">None</option>${ctx.diapers.map(optionHtml).join("")}</select></label>
           </div>
-          <button class="btn fox" type="submit">Send Message</button>
+          <div class="message-send-row">
+            <textarea name="body" required maxlength="1000" rows="2" placeholder="Text a message"></textarea>
+            <button class="btn fox" type="submit">Send</button>
+          </div>
         </form>
       </article>
     ` : `<article class="card"><h3>Messages</h3><p>You can read messages, but this friend access cannot send replies.</p></article>`}
-    <article class="card" style="margin-top:14px">
-      <h3>Household Chat</h3>
-      <div class="list" style="margin-top:12px">${ctx.messages.map(message => messageItem(ctx, message)).join("") || `<div class="empty">No messages yet.</div>`}</div>
-    </article>
   `;
   document.getElementById("messageForm")?.addEventListener("submit", event => saveMessage(event, ctx));
+  view.querySelector(".message-thread")?.scrollTo({ top: view.querySelector(".message-thread").scrollHeight });
 }
 
 async function saveMessage(event, ctx) {
@@ -159,6 +224,7 @@ async function injectMessagesTab() {
   const settings = tabs.querySelector('[data-tab="settings"]');
   tabs.insertBefore(button, settings || null);
   button.addEventListener("click", renderMessages);
+  updateMessageBadge(ctx);
 }
 
 function injectSettingsHint() {
@@ -179,3 +245,7 @@ const observer = new MutationObserver(() => {
 });
 observer.observe(document.getElementById("app"), { childList: true, subtree: true });
 injectMessagesTab();
+setInterval(async () => {
+  const ctx = await loadContext().catch(() => null);
+  if (ctx && can(ctx.member, ctx.household, ctx.session.user.id, "can_view_messages")) updateMessageBadge(ctx);
+}, 30000);
