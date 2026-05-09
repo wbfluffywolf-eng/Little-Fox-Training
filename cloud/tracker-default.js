@@ -234,8 +234,9 @@ document.addEventListener("click", event => {
   }
 });
 
+installMembershipSorter();
 defaultToPersonalTracker();
 await ensurePersonalTracker();
-installMembershipSorter();
+await import("./app.js");
 new MutationObserver(injectSharedTrackers).observe(document.getElementById("app"), { childList: true, subtree: true });
 setTimeout(injectSharedTrackers, 0);
