@@ -91,6 +91,26 @@
   white-space: pre-wrap;
 }
 
+.message-image,
+.post-image {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  margin-top: 8px;
+}
+
+.message-row.mine .message-image {
+  border-color: rgba(255,255,255,.34);
+}
+
+.post-image {
+  max-height: 520px;
+}
+
 .message-meta {
   display: flex;
   flex-wrap: wrap;
@@ -147,6 +167,11 @@
 
   .message-bubble {
     max-width: 86%;
+  }
+
+  .message-image,
+  .post-image {
+    max-height: 320px;
   }
 
   .message-composer-tools,
