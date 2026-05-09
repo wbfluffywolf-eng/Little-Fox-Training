@@ -104,11 +104,11 @@ function postHtml(ctx, post) {
             <p>${esc(new Date(post.created_at).toLocaleString())}</p>
           </div>
         </div>
-        <span class="pill ${hasPawed ? "owner" : "viewer"}">${paws.length} paws</span>
+        <span class="pill ${hasPawed ? "owner" : "viewer"}">🐾 ${paws.length}</span>
       </div>
       <p>${esc(post.body)}</p>
       <div class="pill-row" style="margin-top:10px">
-        <button class="btn secondary" type="button" data-paw-post="${esc(post.id)}">${hasPawed ? "Pawed" : "Paw"}</button>
+        <button class="btn secondary" type="button" data-paw-post="${esc(post.id)}">${hasPawed ? "🐾 Pawed" : "🐾 Paw"}</button>
         ${canDelete ? `<button class="btn secondary" type="button" data-delete-public-post="${esc(post.id)}">Delete</button>` : ""}
       </div>
     </div>
