@@ -93,7 +93,10 @@ async function loadInventoryContext() {
     .eq("status", "active");
   if (membershipError) throw membershipError;
 
-  const member = memberships?.[0];
+  const currentViewHasSuggestForm = Boolean(document.getElementById("suggestForm") || document.getElementById("inventorySuggestForm"));
+  const sharedSuggestMember = memberships?.find(row => row.can_suggest_diaper === true && row.households);
+  const ownerMember = memberships?.find(row => row.role === "owner" || row.households?.owner_id === session.user.id);
+  const member = (currentViewHasSuggestForm && sharedSuggestMember) || ownerMember || memberships?.[0];
   const household = member?.households;
   if (!member || !household) return null;
 
@@ -109,6 +112,8 @@ async function loadInventoryContext() {
   return {
     household,
     isOwner: member.role === "owner" || household.owner_id === session.user.id,
+    canSuggest: member.can_suggest_diaper === true && member.role !== "owner" && household.owner_id !== session.user.id,
+    userId: session.user.id,
     diapers: diapers.data || [],
     logs: logs.data || []
   };
@@ -218,6 +223,31 @@ function presetForm() {
   `;
 }
 
+function suggestionForm(ctx) {
+  const diaperOptions = ctx.diapers
+    .filter(item => item.item_type === "disposable" || item.item_type === "cloth")
+    .map(item => `<option value="${esc(item.id)}">${esc(item.brand)} ${esc(item.style)}${item.size ? ` (${esc(item.size)})` : ""}</option>`)
+    .join("");
+
+  return `
+    <article class="card">
+      <h3>Suggest a Diaper</h3>
+      <p>Send a diaper suggestion to this tracker owner.</p>
+      <form id="inventorySuggestForm" class="grid" style="margin-top:12px">
+        <label>Diaper
+          <select name="diaper_id" required>
+            ${diaperOptions}
+          </select>
+        </label>
+        <label>Message
+          <textarea name="note" rows="3" placeholder="Optional note"></textarea>
+        </label>
+        <button class="btn fox" type="submit" ${diaperOptions ? "" : "disabled"}>Send Suggestion</button>
+      </form>
+    </article>
+  `;
+}
+
 function renderInventory(ctx) {
   const grouped = Object.fromEntries(Object.keys(itemTypes).map(type => [type, ctx.diapers.filter(item => item.item_type === type)]));
   const disposableCount = [...grouped.disposable, ...grouped.disposable_insert].reduce((sum, item) => sum + Number(item.stock_count || 0), 0);
@@ -231,6 +261,7 @@ function renderInventory(ctx) {
       ${statCard("Clean Cloth", clothClean, `${lowStock} low stock items`)}
     </div>
     ${ctx.isOwner ? `<section class="grid two" style="margin-top:14px">${presetForm()}${manualForm()}</section>` : ""}
+    ${ctx.canSuggest ? `<section class="grid two" style="margin-top:14px">${suggestionForm(ctx)}</section>` : ""}
     <section class="grid two" style="margin-top:14px">
       ${Object.keys(itemTypes).map(type => inventoryGroup(type, grouped[type], ctx.logs, ctx.isOwner)).join("")}
     </section>
@@ -334,6 +365,26 @@ function configureManualForm(form) {
   });
 }
 
+function configureSuggestionForm(form) {
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const ctx = await loadInventoryContext();
+    if (!ctx?.canSuggest) return toast("This tracker does not allow diaper suggestions.");
+    const data = new FormData(form);
+    const diaperId = data.get("diaper_id");
+    if (!diaperId) return toast("Pick a diaper first.");
+    const { error } = await supabase.from("diaper_suggestions").insert({
+      household_id: ctx.household.id,
+      diaper_id: diaperId,
+      suggested_by: ctx.userId,
+      note: String(data.get("note") || "").trim()
+    });
+    if (error) return toast(`Suggestion could not send: ${error.message}`);
+    form.reset();
+    toast("Suggestion sent.");
+  });
+}
+
 async function deleteItem(id) {
   const { error } = await supabase.from("diapers").delete().eq("id", id);
   if (error) return toast(error.message);
@@ -356,6 +407,8 @@ async function rebuildInventory(force = false) {
   if (preset) configurePresetForm(preset);
   const manual = document.getElementById("inventoryManualForm");
   if (manual) configureManualForm(manual);
+  const suggestion = document.getElementById("inventorySuggestForm");
+  if (suggestion) configureSuggestionForm(suggestion);
   view.querySelectorAll("[data-inventory-delete]").forEach(button => {
     button.addEventListener("click", () => deleteItem(button.dataset.inventoryDelete));
   });
