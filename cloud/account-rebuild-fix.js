@@ -24,6 +24,11 @@ function removeDashboardFriendCards() {
 function removePersonalSuggestionCards() {
   if (sessionStorage.getItem(selectedKey)) return;
   document.getElementById("friendSuggestionCard")?.remove();
+  document.getElementById("inventorySuggestForm")?.closest(".card")?.remove();
+  document.getElementById("suggestForm")?.closest(".card")?.remove();
+  document.querySelectorAll("button").forEach(button => {
+    if (button.textContent.trim() === "Suggest Diaper") button.remove();
+  });
 }
 
 function recoverReadOnlyDailyLog() {
