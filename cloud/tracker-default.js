@@ -12,10 +12,6 @@ function defaultToPersonalTracker() {
   sessionStorage.setItem(forcePersonalKey, "1");
 }
 
-function esc(value) {
-  return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
-}
-
 function decodeJwtSub(token) {
   try {
     const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
@@ -154,68 +150,8 @@ function installMembershipSorter() {
   };
 }
 
-async function loadSharedMemberships() {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData.session;
-  if (!session) return [];
-  const { data } = await supabase
-    .from("household_members")
-    .select("*, households(*)")
-    .eq("user_id", session.user.id)
-    .eq("status", "active");
-  const personal = localStorage.getItem(personalKey) || "";
-  return (data || []).filter(row => row.id !== personal && row.role !== "owner" && row.households?.owner_id !== session.user.id);
-}
-
-function accessLabel(member) {
-  const tabs = [
-    ["can_view_dashboard", "Dashboard"],
-    ["can_view_calendar", "Calendar"],
-    ["can_view_inventory", "Inventory"],
-    ["can_view_trends", "Trends"],
-    ["can_view_expenses", "Expenses"],
-    ["can_view_messages", "Messages"]
-  ];
-  return tabs.filter(([key]) => member[key] === true).map(([, label]) => label).join(", ") || "Limited access";
-}
-
 async function injectSharedTrackers() {
-  const title = document.querySelector(".topbar h2")?.textContent.trim();
-  const view = document.getElementById("view");
-  if (title !== "Dashboard" || !view || document.getElementById("sharedTrackerCard")) return;
-
-  const selected = sessionStorage.getItem(selectedKey);
-  if (selected) {
-    view.insertAdjacentHTML("beforeend", `
-      <article class="card" id="sharedTrackerCard" style="margin-top:14px">
-        <h3>Shared Diaper Tracker</h3>
-        <p>You are viewing a shared tracker. Your own logs stay under My Dashboard.</p>
-        <button class="btn secondary" type="button" data-open-my-tracker>My Dashboard</button>
-      </article>
-    `);
-    return;
-  }
-
-  const shared = await loadSharedMemberships();
-  if (!shared.length || document.getElementById("sharedTrackerCard")) return;
-  view.insertAdjacentHTML("beforeend", `
-    <article class="card" id="sharedTrackerCard" style="margin-top:14px">
-      <h3>Shared Diaper Trackers</h3>
-      <div class="list" style="margin-top:12px">
-        ${shared.map(member => `
-          <div class="item">
-            <div class="item-head">
-              <div>
-                <h4>${esc(member.households?.name || "Shared tracker")}</h4>
-                <p>${esc(accessLabel(member))}</p>
-              </div>
-              <button class="btn secondary" type="button" data-open-shared-tracker="${esc(member.id)}">Open</button>
-            </div>
-          </div>
-        `).join("")}
-      </div>
-    </article>
-  `);
+  document.getElementById("sharedTrackerCard")?.remove();
 }
 
 document.addEventListener("click", event => {
