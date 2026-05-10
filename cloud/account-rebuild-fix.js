@@ -66,7 +66,7 @@ function recoverReadOnlyDailyLog() {
   const title = document.querySelector(".topbar h2")?.textContent.trim();
   const subtitle = document.querySelector(".topbar p")?.textContent.trim().toLowerCase() || "";
   const hasOnlySuggest = Boolean(document.querySelector("#view [data-tab='inventory'], #view #suggestForm, #view #friendSuggestionCard"));
-  if (title === "Daily Log" && subtitle.includes("read-only") && hasOnlySuggest) {
+  if ((title === "Daily Log" && subtitle.includes("read-only")) || (title === "Daily Log" && hasOnlySuggest)) {
     forceOwnTracker();
     location.reload();
   }
