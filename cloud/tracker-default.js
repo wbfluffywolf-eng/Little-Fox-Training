@@ -31,7 +31,8 @@ function headerValue(headers, name) {
 function authUserFromRequest(input, init) {
   const headers = init?.headers || input?.headers;
   const auth = headerValue(headers, "authorization");
-  return auth.toLowerCase().startsWith("bearer ") ? decodeJwtSub(auth.slice(7)) : "";
+  const fromAuth = auth.toLowerCase().startsWith("bearer ") ? decodeJwtSub(auth.slice(7)) : "";
+  return fromAuth || window.__littleFoxCurrentUserId || "";
 }
 
 function sortedMemberships(rows, userId) {
@@ -84,6 +85,7 @@ async function ensurePersonalTracker() {
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData.session;
   if (!session) return;
+  window.__littleFoxCurrentUserId = session.user.id;
 
   const { data: memberships, error } = await supabase
     .from("household_members")
@@ -132,10 +134,11 @@ function installMembershipSorter() {
     const response = await nativeFetch(input, init);
     try {
       const url = new URL(typeof input === "string" ? input : input.url);
+      const decodedSearch = decodeURIComponent(url.search);
       const isMembershipFetch = url.hostname.includes("supabase.co") &&
         url.pathname.includes("/household_members") &&
-        url.search.includes("households(*)") &&
-        url.search.includes("status=eq.active");
+        decodedSearch.includes("households(*)") &&
+        decodedSearch.includes("status=eq.active");
       if (!isMembershipFetch || !response.ok) return response;
 
       const rows = await response.clone().json();
