@@ -2,6 +2,8 @@ const selectedKey = "littleFoxSelectedSharedTracker";
 const forcePersonalKey = "littleFoxForcePersonalTracker";
 const pendingFriendKey = "littleFoxPendingFriendView";
 
+const personalTabs = new Set(["dashboard", "log", "inventory", "calendar", "trends", "cloth", "expenses", "settings", "messages"]);
+
 function friendViewIsPending() {
   return Boolean(sessionStorage.getItem(pendingFriendKey));
 }
@@ -9,6 +11,10 @@ function friendViewIsPending() {
 function forceOwnTracker() {
   sessionStorage.removeItem(selectedKey);
   sessionStorage.setItem(forcePersonalKey, "1");
+}
+
+function isFriendsPage() {
+  return document.querySelector("[data-friends-tab].active") || document.querySelector(".topbar h2")?.textContent.trim() === "Friends";
 }
 
 function removeDashboardFriendCards() {
@@ -31,6 +37,30 @@ function removePersonalSuggestionCards() {
   });
 }
 
+function removeFriendUsageFromMainTabs() {
+  if (isFriendsPage()) return;
+  document.querySelectorAll("[data-open-shared-tracker], [data-my-tracker]").forEach(button => button.remove());
+  document.querySelectorAll(".card h3").forEach(heading => {
+    const text = heading.textContent.trim();
+    if (text === "Shared Diaper Trackers" || text === "Shared Diaper Tracker" || text === "Friend Tracker") {
+      heading.closest(".card")?.remove();
+    }
+  });
+}
+
+function ensureLogButtonForPersonalTabs() {
+  if (isFriendsPage()) return;
+  const topbarActions = document.querySelector(".topbar .pill-row");
+  if (!topbarActions || topbarActions.querySelector("[data-log-my-diaper]")) return;
+  const button = document.createElement("button");
+  button.className = "btn fox";
+  button.type = "button";
+  button.dataset.logMyDiaper = "true";
+  button.dataset.tab = "log";
+  button.textContent = "Log My Diaper";
+  topbarActions.prepend(button);
+}
+
 function recoverReadOnlyDailyLog() {
   if (friendViewIsPending()) return;
   const title = document.querySelector(".topbar h2")?.textContent.trim();
@@ -43,16 +73,20 @@ function recoverReadOnlyDailyLog() {
 }
 
 function keepOwnTrackerDefault() {
-  if (!friendViewIsPending() && !sessionStorage.getItem(selectedKey)) {
+  if (!friendViewIsPending() && !isFriendsPage()) {
+    sessionStorage.removeItem(selectedKey);
     sessionStorage.setItem(forcePersonalKey, "1");
   }
   removeDashboardFriendCards();
   removePersonalSuggestionCards();
+  removeFriendUsageFromMainTabs();
+  ensureLogButtonForPersonalTabs();
   recoverReadOnlyDailyLog();
 }
 
 document.addEventListener("click", event => {
-  if (event.target.closest("[data-friends-my-log], [data-friends-my-dashboard], [data-tab='dashboard'], [data-tab='log']")) {
+  const tab = event.target.closest("[data-tab]")?.dataset.tab;
+  if (event.target.closest("[data-friends-my-log], [data-friends-my-dashboard], [data-log-my-diaper]") || personalTabs.has(tab)) {
     forceOwnTracker();
   }
 });
