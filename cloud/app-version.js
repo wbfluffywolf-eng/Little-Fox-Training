@@ -1,0 +1,19 @@
+const APP_VERSION = "v47";
+
+function injectAppVersion() {
+  const title = document.querySelector(".topbar h2")?.textContent.trim();
+  const view = document.getElementById("view");
+  if (title !== "Settings" || !view || document.getElementById("appVersionCard")) return;
+
+  const card = document.createElement("article");
+  card.className = "card";
+  card.id = "appVersionCard";
+  card.innerHTML = `
+    <h3>App Version</h3>
+    <p>Little Fox Training Cloud ${APP_VERSION}</p>
+  `;
+  view.appendChild(card);
+}
+
+new MutationObserver(injectAppVersion).observe(document.getElementById("app"), { childList: true, subtree: true });
+injectAppVersion();
