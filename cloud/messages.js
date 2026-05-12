@@ -5,6 +5,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 const selectedKey = "littleFoxSelectedSharedTracker";
 const personalKey = "littleFoxPersonalTracker";
 const seenKeyPrefix = "littleFoxMessagesSeen";
+const activeContactKeyPrefix = "littleFoxActiveMessageContact";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -33,8 +34,10 @@ async function loadContext() {
     .eq("status", "active");
   const selectedId = sessionStorage.getItem(selectedKey);
   const personalId = localStorage.getItem(personalKey);
-  const member = (memberships || []).find(row => row.id === selectedId)
+  const ownerMember = (memberships || []).find(row => row.role === "owner" || row.households?.owner_id === session.user.id);
+  const member = ownerMember
     || (memberships || []).find(row => row.id === personalId)
+    || (memberships || []).find(row => row.id === selectedId)
     || memberships?.[0];
   const household = member?.households;
   if (!member || !household) return null;
@@ -44,7 +47,7 @@ async function loadContext() {
       ? supabase.from("diapers").select("*").eq("household_id", household.id).order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     can(member, household, session.user.id, "can_view_messages")
-      ? supabase.from("messages").select("*, diapers(brand, style, size)").eq("household_id", household.id).order("created_at", { ascending: false }).limit(80)
+      ? supabase.from("messages").select("*, diapers(brand, style, size)").eq("household_id", household.id).order("created_at", { ascending: false }).limit(120)
       : Promise.resolve({ data: [], error: null })
   ]);
   return {
@@ -93,10 +96,61 @@ function memberName(ctx, userId) {
 }
 
 function recipientOptions(ctx) {
-  return ctx.members
-    .filter(member => member.user_id && member.user_id !== ctx.session.user.id && member.status === "active")
+  return messageContacts(ctx)
     .map(member => `<option value="${esc(member.user_id)}">${esc(member.invite_email || "Household member")}</option>`)
     .join("");
+}
+
+function messageContacts(ctx) {
+  return ctx.members
+    .filter(member => member.user_id && member.user_id !== ctx.session.user.id && member.status === "active")
+    .sort((a, b) => String(a.invite_email || "").localeCompare(String(b.invite_email || "")));
+}
+
+function activeContactKey(householdId) {
+  return `${activeContactKeyPrefix}:${householdId}`;
+}
+
+function selectedContactId(ctx) {
+  const contacts = messageContacts(ctx);
+  const saved = sessionStorage.getItem(activeContactKey(ctx.household.id));
+  return contacts.some(member => member.user_id === saved) ? saved : contacts[0]?.user_id || "";
+}
+
+function setSelectedContact(ctx, userId) {
+  if (userId) sessionStorage.setItem(activeContactKey(ctx.household.id), userId);
+}
+
+function threadMessages(ctx, contactId) {
+  if (!contactId) return [];
+  return ctx.messages.filter(message =>
+    (message.sender_id === ctx.session.user.id && message.recipient_id === contactId) ||
+    (message.sender_id === contactId && message.recipient_id === ctx.session.user.id)
+  );
+}
+
+function contactList(ctx, activeId) {
+  const contacts = messageContacts(ctx);
+  return `
+    <article class="card message-contacts">
+      <h3>Friends</h3>
+      <div class="list" style="margin-top:12px">
+        ${contacts.map(member => {
+          const last = threadMessages(ctx, member.user_id).map(message => message.created_at).sort().pop() || "";
+          return `
+            <button class="item message-contact ${member.user_id === activeId ? "active" : ""}" type="button" data-message-contact="${esc(member.user_id)}">
+              <div class="item-head">
+                <div>
+                  <h4>${esc(member.invite_email || "Household member")}</h4>
+                  <p>${last ? esc(new Date(last).toLocaleString()) : "No private messages yet"}</p>
+                </div>
+              </div>
+            </button>
+          `;
+        }).join("") || `<div class="empty">Add a friend before messaging.</div>`}
+      </div>
+    </article>
+  `;
 }
 
 function seenKey(householdId) {
@@ -106,7 +160,7 @@ function seenKey(householdId) {
 function newestIncoming(ctx) {
   return ctx.messages
     .filter(message => message.sender_id !== ctx.session.user.id)
-    .filter(message => !message.recipient_id || message.recipient_id === ctx.session.user.id)
+    .filter(message => message.recipient_id === ctx.session.user.id)
     .map(message => message.created_at)
     .sort()
     .pop() || "";
@@ -144,16 +198,13 @@ function updateMessageBadge(ctx) {
 
 function messageItem(ctx, message) {
   const sender = memberName(ctx, message.sender_id);
-  const recipient = message.recipient_id ? memberName(ctx, message.recipient_id) : "Everyone";
   const diaper = message.diapers ? `${message.diapers.brand} ${message.diapers.style}${message.diapers.size ? ` (${message.diapers.size})` : ""}` : "";
   const mine = message.sender_id === ctx.session.user.id;
-  const directed = message.recipient_id && message.recipient_id !== ctx.session.user.id;
   return `
     <div class="message-row ${mine ? "mine" : "theirs"}">
       <div class="message-bubble">
         <div class="message-meta">
           <span>${mine ? "You" : esc(sender)}</span>
-          <span>${directed ? `to ${esc(recipient)}` : ""}</span>
           <time>${esc(new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</time>
         </div>
         <p>${esc(message.body)}</p>
@@ -181,23 +232,28 @@ async function renderMessages() {
     return;
   }
   markMessagesSeen(ctx);
-  const messages = [...ctx.messages].reverse();
+  const activeContact = selectedContactId(ctx);
+  const activeContactName = memberName(ctx, activeContact);
+  const messages = threadMessages(ctx, activeContact).reverse();
   view.innerHTML = `
-    <article class="card message-shell">
-      <div class="message-title">
-        <div>
-          <h3>Household Chat</h3>
-          <p>${esc(ctx.household.name || "Shared tracker")}</p>
+    <section class="message-layout">
+      ${contactList(ctx, activeContact)}
+      <article class="card message-shell">
+        <div class="message-title">
+          <div>
+            <h3>${activeContact ? esc(activeContactName) : "Choose a friend"}</h3>
+            <p>${activeContact ? "Private messages between just you two" : "Messages stay private to the selected friend."}</p>
+          </div>
+          <span class="pill viewer">${messages.length} messages</span>
         </div>
-        <span class="pill viewer">${ctx.messages.length} messages</span>
-      </div>
-      <div class="message-thread">${messages.map(message => messageItem(ctx, message)).join("") || `<div class="empty">No messages yet.</div>`}</div>
-    </article>
+        <div class="message-thread">${messages.map(message => messageItem(ctx, message)).join("") || `<div class="empty">${activeContact ? "No private messages yet." : "Choose a friend to open a private thread."}</div>`}</div>
+      </article>
+    </section>
     ${canSend ? `
       <article class="card message-composer">
         <form id="messageForm">
           <div class="message-composer-tools">
-            <label>To<select name="recipient_id"><option value="">Everyone</option>${recipientOptions(ctx)}</select></label>
+            <label>To<select name="recipient_id" required>${recipientOptions(ctx)}</select></label>
             <label>Diaper / ping<select name="diaper_id"><option value="">None</option>${ctx.diapers.map(optionHtml).join("")}</select></label>
             <label class="message-photo-field">Photo<input type="file" name="image" accept="image/*"></label>
           </div>
@@ -209,7 +265,15 @@ async function renderMessages() {
       </article>
     ` : `<article class="card"><h3>Messages</h3><p>You can read messages, but this friend access cannot send replies.</p></article>`}
   `;
-  document.getElementById("messageForm")?.addEventListener("submit", event => saveMessage(event, ctx));
+  const form = document.getElementById("messageForm");
+  if (form?.elements.recipient_id && activeContact) form.elements.recipient_id.value = activeContact;
+  form?.addEventListener("submit", event => saveMessage(event, ctx));
+  view.querySelectorAll("[data-message-contact]").forEach(button => {
+    button.addEventListener("click", () => {
+      setSelectedContact(ctx, button.dataset.messageContact);
+      renderMessages();
+    });
+  });
   view.querySelector(".message-thread")?.scrollTo({ top: view.querySelector(".message-thread").scrollHeight });
 }
 
@@ -225,16 +289,23 @@ async function saveMessage(event, ctx) {
     return "";
   });
   const body = String(data.get("body") || "").trim() || (imageData ? "Photo" : "");
+  const recipientId = String(data.get("recipient_id") || "").trim();
   if (!body) {
     button.disabled = false;
     button.textContent = "Send";
     toast("Add a message or photo before sending.");
     return;
   }
+  if (!recipientId) {
+    button.disabled = false;
+    button.textContent = "Send";
+    toast("Choose a friend first.");
+    return;
+  }
   const { error } = await supabase.from("messages").insert({
     household_id: ctx.household.id,
     sender_id: ctx.session.user.id,
-    recipient_id: data.get("recipient_id") || null,
+    recipient_id: recipientId,
     body,
     diaper_id: data.get("diaper_id") || null,
     image_data: imageData || null
