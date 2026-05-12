@@ -18,6 +18,25 @@
   box-shadow: 0 6px 14px rgba(0,0,0,.22);
 }
 
+.message-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.message-contact {
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.message-contact.active {
+  border-color: var(--fox);
+  background: rgba(232,114,38,.12);
+}
+
 .message-shell {
   padding: 0;
   overflow: hidden;
@@ -33,13 +52,8 @@
   background: #fffaf4;
 }
 
-.message-title h3 {
-  margin: 0;
-}
-
-.message-title p {
-  margin: 4px 0 0;
-}
+.message-title h3 { margin: 0; }
+.message-title p { margin: 4px 0 0; }
 
 .message-thread {
   display: grid;
@@ -52,17 +66,9 @@
     linear-gradient(135deg, rgba(232,114,38,.12), rgba(47,128,168,.12));
 }
 
-.message-row {
-  display: flex;
-}
-
-.message-row.mine {
-  justify-content: flex-end;
-}
-
-.message-row.theirs {
-  justify-content: flex-start;
-}
+.message-row { display: flex; }
+.message-row.mine { justify-content: flex-end; }
+.message-row.theirs { justify-content: flex-start; }
 
 .message-bubble {
   width: fit-content;
@@ -154,6 +160,10 @@
   .tab-paw-badge {
     top: 1px;
     right: 2px;
+  }
+
+  .message-layout {
+    grid-template-columns: 1fr;
   }
 
   .message-title,
