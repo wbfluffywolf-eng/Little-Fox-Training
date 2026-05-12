@@ -1,0 +1,25 @@
+brand,product_name,product_type,size,diapers_or_inserts_per_bag,diapers_or_inserts_per_case,price_per_bag_or_pack_usd,price_per_case_usd,price_per_40_case_usd,price_per_80_case_usd,unit_or_sample_price_usd,price_basis,product_url,image_url,price_source_url,price_checked_date
+NorthShore,MegaMax,Disposable diaper,Medium,10,,0,,,,,,https://www.northshorecare.com/,,,,2026-05-09
+NorthShore,Supreme,Disposable diaper,Medium,15,,0,,,,,,https://www.northshorecare.com/,,,,2026-05-09
+NorthShore,GoSupreme Pull-On,Disposable pull-up underwear,Medium,14,,0,,,,,,https://www.northshorecare.com/,,,,2026-05-09
+InControl,BeDry EliteCare Premium Incontinence Briefs,Tape-style disposable brief,Small,12,36,36.99,108.99,,,7.99,,https://us.incontroldiapers.com/bedry-elitecare/,,,2026-05-09
+InControl,BeDry EliteCare Premium Incontinence Briefs,Tape-style disposable brief,Medium,12,36,36.99,108.99,,,7.99,,https://us.incontroldiapers.com/bedry-elitecare/,,,2026-05-09
+InControl,BeDry EliteCare Premium Incontinence Briefs,Tape-style disposable brief,Large,12,36,36.99,108.99,,,7.99,,https://us.incontroldiapers.com/bedry-elitecare/,,,2026-05-09
+InControl,BeDry Premium Incontinence Briefs,Tape-style disposable brief,Medium,16,48,43.99,120.99,,,7.99,,https://us.incontroldiapers.com/incontrol-bedry-premium-incontinence-briefs/,,,2026-05-09
+InControl,BeDry Night Premium Incontinence Briefs,Tape-style disposable brief,Medium,12,36,41.99,118.99,,,7.99,,https://us.incontroldiapers.com/bedry-night/,,,2026-05-09
+InControl,Active Air Incontinence Briefs,Tape-style disposable brief,Medium,20,60,50.99,144.99,,,7.99,,https://us.incontroldiapers.com/incontrol-active-air-incontinence-briefs/,,,2026-05-09
+Potty Training Dropouts,BeddyByes,Disposable diaper,S,10,40,39.00,,,,,,https://ptdropouts.com/products/beddybyes,https://ptdropouts.com/cdn/shop/files/BeddyByes_Pack.jpg,https://ptdropouts.com/products/beddybyes,2026-05-09
+Potty Training Dropouts,BeddyByes,Disposable diaper,M,10,40,39.00,,,,,,https://ptdropouts.com/products/beddybyes,https://ptdropouts.com/cdn/shop/files/BeddyByes_Pack.jpg,https://ptdropouts.com/products/beddybyes,2026-05-09
+Potty Training Dropouts,BeddyByes,Disposable diaper,L,10,40,39.00,,,,,,https://ptdropouts.com/products/beddybyes,https://ptdropouts.com/cdn/shop/files/BeddyByes_Pack.jpg,https://ptdropouts.com/products/beddybyes,2026-05-09
+Potty Training Dropouts,BeddyByes,Disposable diaper,XL,10,40,39.00,,,,,,https://ptdropouts.com/products/beddybyes,https://ptdropouts.com/cdn/shop/files/BeddyByes_Pack.jpg,https://ptdropouts.com/products/beddybyes,2026-05-09
+Tykables,Overnights,Disposable diaper,Medium,10,,0,,,,,,https://tykables.com/,,,,2026-05-09
+Tykables,Little Builders,Disposable diaper,Medium,10,,0,,,,,,https://tykables.com/,,,,2026-05-09
+ABU,LittlePawz,Disposable diaper,Medium,10,40,40.99,,131.17,245.94,,,https://us.abuniverse.com/products/littlepawz,,,2026-05-09
+ABU,BeddyByes,Disposable diaper,Medium,,80,,225,,,,,https://us.abuniverse.com/,,,,2026-05-09
+Little Northwood,Little Quest,Disposable diaper,Medium,2,,0,,,,,,https://littlenorthwood.com/,,,,2026-05-09
+LNGU,Honey Tales,Disposable diaper,Medium,10,,31.99,,,,,,https://lngu.com/,,,,2026-05-09
+LNGU,Big Ears Baby,Disposable diaper,Medium,,40,,0,,,,,https://lngu.com/,,,,2026-05-09
+LNGU,Dragoonz,Disposable diaper,Medium,,40,,0,,,,,https://lngu.com/,,,,2026-05-09
+NorthShore,Booster Pad,Booster insert,Regular,30,,0,,,,,,https://www.northshorecare.com/,,,,2026-05-09
+ABU,PowerUps Booster Pads,Booster insert,Regular,20,,0,,,,,,https://us.abuniverse.com/,,,,2026-05-09
+InControl,Booster Pads - Unscented,Booster insert,One Size,30,180,21.99,,,,,,https://us.incontroldiapers.com/incontrol-booster-pads-unscented/,,,2026-05-09
