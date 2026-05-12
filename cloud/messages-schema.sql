@@ -9,6 +9,7 @@ create table if not exists public.messages (
   recipient_id uuid references auth.users(id) on delete cascade,
   diaper_id uuid references public.diapers(id) on delete set null,
   body text not null check (char_length(trim(body)) between 1 and 1000),
+  image_data text,
   created_at timestamptz not null default now()
 );
 
@@ -19,6 +20,18 @@ alter table public.messages
   add column if not exists image_data text;
 
 alter table public.messages enable row level security;
+
+create or replace function public.is_household_owner(target_household uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.households
+    where id = target_household and owner_id = auth.uid()
+  );
+$$;
 
 create or replace function public.can_view_household(target_household uuid, permission_key text)
 returns boolean
@@ -67,26 +80,22 @@ drop policy if exists messages_select_allowed on public.messages;
 create policy messages_select_allowed on public.messages for select using (
   public.can_view_household(household_id, 'messages')
   and (
-    recipient_id is null
+    sender_id = auth.uid()
     or recipient_id = auth.uid()
-    or sender_id = auth.uid()
-    or public.is_household_owner(household_id)
   )
 );
 
 drop policy if exists messages_insert_allowed on public.messages;
 create policy messages_insert_allowed on public.messages for insert with check (
   sender_id = auth.uid()
+  and recipient_id is not null
   and public.can_send_message(household_id)
-  and (
-    recipient_id is null
-    or exists (
-      select 1
-      from public.household_members
-      where household_id = messages.household_id
-        and user_id = recipient_id
-        and status = 'active'
-    )
+  and exists (
+    select 1
+    from public.household_members
+    where household_id = messages.household_id
+      and user_id = recipient_id
+      and status = 'active'
   )
 );
 
