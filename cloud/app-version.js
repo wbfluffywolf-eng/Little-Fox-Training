@@ -1,4 +1,4 @@
-const APP_VERSION = "v48";
+const APP_VERSION = "v49";
 
 function injectAppVersion() {
   const title = document.querySelector(".topbar h2")?.textContent.trim();
