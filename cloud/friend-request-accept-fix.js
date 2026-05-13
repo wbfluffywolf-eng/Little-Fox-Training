@@ -55,6 +55,13 @@ async function loadIncomingRequests(userId) {
   return (data || []).filter(row => row.role !== "owner" && row.households?.owner_id !== userId && row.households);
 }
 
+function setFriendsBadge(count) {
+  const button = document.querySelector("[data-friends-tab]");
+  if (!button) return;
+  button.textContent = count > 0 ? `Friends (${count})` : "Friends";
+  button.dataset.friendRequestCount = String(count);
+}
+
 function requestCardHtml(requests) {
   return `
     <article class="card" id="friendRequestsCard" style="margin-top:14px">
@@ -123,10 +130,21 @@ async function injectFriendRequests() {
   const user = await currentUser();
   if (!user) return;
   const requests = await loadIncomingRequests(user.id);
+  setFriendsBadge(requests.length);
   if (!requests.length) return;
   const friendsCard = [...view.querySelectorAll(".card h3")].find(heading => heading.textContent.trim() === "Friends")?.closest(".card");
   if (friendsCard) friendsCard.insertAdjacentHTML("beforebegin", requestCardHtml(requests));
   else view.insertAdjacentHTML("afterbegin", requestCardHtml(requests));
+}
+
+async function refreshFriendsBadge() {
+  const user = await currentUser();
+  if (!user) {
+    setFriendsBadge(0);
+    return;
+  }
+  const requests = await loadIncomingRequests(user.id);
+  setFriendsBadge(requests.length);
 }
 
 document.addEventListener("click", async event => {
@@ -137,6 +155,7 @@ document.addEventListener("click", async event => {
   try {
     await acceptRequest(button.dataset.friendAcceptFix);
     toast("Friend request accepted.");
+    setFriendsBadge(0);
     setTimeout(() => location.reload(), 500);
   } catch (error) {
     toast(error.message || "Friend request could not be accepted.");
@@ -145,5 +164,9 @@ document.addEventListener("click", async event => {
   }
 });
 
-new MutationObserver(() => injectFriendRequests()).observe(document.getElementById("app"), { childList: true, subtree: true });
+new MutationObserver(() => {
+  refreshFriendsBadge().catch(() => {});
+  injectFriendRequests();
+}).observe(document.getElementById("app"), { childList: true, subtree: true });
+refreshFriendsBadge().catch(() => {});
 injectFriendRequests();
