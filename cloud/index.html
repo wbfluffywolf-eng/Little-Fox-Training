@@ -114,15 +114,24 @@
         });
       }
 
-      const observer = new MutationObserver(() => {
-        injectSettings();
-        applyGraphPrefs();
+      document.addEventListener("click", event => {
+        if (event.target.closest('[data-tab="settings"]')) {
+          setTimeout(() => {
+            injectSettings();
+            applyGraphPrefs();
+          }, 100);
+          return;
+        }
+        if (event.target.closest("[data-tab]")) setTimeout(applyGraphPrefs, 100);
       });
-      observer.observe(document.getElementById("app"), { childList: true, subtree: true });
       document.addEventListener("DOMContentLoaded", () => {
         injectSettings();
         applyGraphPrefs();
       });
+      [500, 1500, 3000].forEach(delay => setTimeout(() => {
+        injectSettings();
+        applyGraphPrefs();
+      }, delay));
     })();
   </script>
 </body>
