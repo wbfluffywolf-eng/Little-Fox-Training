@@ -66,5 +66,9 @@ function applyFriendLinkFixes() {
   addFriendLinks();
 }
 
-new MutationObserver(applyFriendLinkFixes).observe(document.body, { childList: true, subtree: true });
+document.addEventListener("click", event => {
+  if (event.target.closest('[data-tab="settings"]')) setTimeout(applyFriendLinkFixes, 100);
+});
+
 applyFriendLinkFixes();
+[500, 1500, 3000].forEach(delay => setTimeout(applyFriendLinkFixes, delay));
