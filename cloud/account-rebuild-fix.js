@@ -91,5 +91,9 @@ document.addEventListener("click", event => {
   }
 });
 
-new MutationObserver(keepOwnTrackerDefault).observe(document.getElementById("app"), { childList: true, subtree: true });
+document.addEventListener("click", event => {
+  if (event.target.closest("[data-tab], [data-friends-tab]")) setTimeout(keepOwnTrackerDefault, 100);
+});
+
 keepOwnTrackerDefault();
+[500, 1500, 3000].forEach(delay => setTimeout(keepOwnTrackerDefault, delay));
