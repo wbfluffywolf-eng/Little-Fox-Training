@@ -12,11 +12,23 @@ function removeCatheterStentSubcategory(select) {
 }
 
 function addCatheterStentNoteControl(textarea) {
-  if (!textarea || textarea.closest("label")?.nextElementSibling?.dataset?.catheterStentNote === "true") return;
+  if (!textarea) return;
+  const form = textarea.closest("form");
+  const existing = form?.querySelector?.('[data-catheter-stent-note="true"]');
+  const toggleRow = [...(form?.querySelectorAll?.(".pill-row") || [])].find(row =>
+    row.querySelector('[name="leaked"]') || row.querySelector('[name="accident"]')
+  );
+  if (existing && toggleRow?.contains(existing)) return;
+  existing?.remove();
+
   const label = document.createElement("label");
   label.dataset.catheterStentNote = "true";
   label.innerHTML = `<span><input type="checkbox" name="catheter_stent_note"> Catheter / stent use</span>`;
-  textarea.closest("label")?.insertAdjacentElement("afterend", label);
+  if (toggleRow) {
+    toggleRow.appendChild(label);
+  } else {
+    textarea.closest("label")?.insertAdjacentElement("afterend", label);
+  }
 }
 
 function patchLogForms() {
@@ -34,9 +46,11 @@ document.addEventListener("submit", event => {
   notes.value = current ? `${current} ${catheterStentNote}` : catheterStentNote;
 }, true);
 
-new MutationObserver(patchLogForms).observe(document.getElementById("app"), {
-  childList: true,
-  subtree: true
+document.addEventListener("click", event => {
+  if (event.target.closest('[data-tab="log"], [data-tab="cloth"], [data-log-my-diaper]')) {
+    setTimeout(patchLogForms, 100);
+  }
 });
 
 patchLogForms();
+[500, 1500, 3000].forEach(delay => setTimeout(patchLogForms, delay));
