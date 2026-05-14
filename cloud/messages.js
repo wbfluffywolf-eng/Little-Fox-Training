@@ -44,10 +44,10 @@ async function loadContext() {
   const [members, diapers, messages] = await Promise.all([
     supabase.from("household_members").select("*").eq("household_id", household.id),
     can(member, household, session.user.id, "can_view_inventory")
-      ? supabase.from("diapers").select("*").eq("household_id", household.id).order("created_at", { ascending: false })
+      ? supabase.from("diapers").select("id, brand, style, size").eq("household_id", household.id).order("created_at", { ascending: false }).limit(120)
       : Promise.resolve({ data: [] }),
     can(member, household, session.user.id, "can_view_messages")
-      ? supabase.from("messages").select("*, diapers(brand, style, size)").eq("household_id", household.id).order("created_at", { ascending: false }).limit(120)
+      ? supabase.from("messages").select("*, diapers(brand, style, size)").eq("household_id", household.id).order("created_at", { ascending: false }).limit(50)
       : Promise.resolve({ data: [], error: null })
   ]);
   return {
@@ -208,7 +208,7 @@ function messageItem(ctx, message) {
           <time>${esc(new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</time>
         </div>
         <p>${esc(message.body)}</p>
-        ${message.image_data ? `<img class="message-image" src="${esc(message.image_data)}" alt="Message attachment">` : ""}
+        ${message.image_data ? `<img class="message-image" src="${esc(message.image_data)}" alt="Message attachment" loading="lazy">` : ""}
         ${diaper ? `<div class="pill-row"><span class="pill viewer">diaper ping</span><span class="pill">${esc(diaper)}</span></div>` : ""}
       </div>
     </div>
@@ -352,13 +352,24 @@ function injectSettingsHint() {
   inviteForm.appendChild(panel);
 }
 
-const observer = new MutationObserver(() => {
+function bootMessagesHelpers() {
   injectMessagesTab();
   injectSettingsHint();
-});
-observer.observe(document.getElementById("app"), { childList: true, subtree: true });
-injectMessagesTab();
-setInterval(async () => {
-  const ctx = await loadContext().catch(() => null);
-  if (ctx && can(ctx.member, ctx.household, ctx.session.user.id, "can_view_messages")) updateMessageBadge(ctx);
-}, 30000);
+}
+
+document.addEventListener("click", event => {
+  const tab = event.target.closest('[data-tab="messages"]');
+  if (tab) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    renderMessages();
+    return;
+  }
+  if (event.target.closest('[data-tab="settings"]')) {
+    setTimeout(bootMessagesHelpers, 100);
+  } else if (event.target.closest("[data-tab]")) {
+    setTimeout(injectMessagesTab, 100);
+  }
+}, true);
+
+[0, 500, 1500, 3000].forEach(delay => setTimeout(bootMessagesHelpers, delay));
