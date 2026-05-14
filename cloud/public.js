@@ -27,10 +27,6 @@ function publicName(user) {
     "Little Fox";
 }
 
-function avatarSrc(id) {
-  return "";
-}
-
 function imageFileToDataUrl(file) {
   if (!file || !file.type.startsWith("image/")) return Promise.resolve("");
   return new Promise((resolve, reject) => {
@@ -63,7 +59,7 @@ async function loadPublicFeed() {
     .from("public_posts")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(80);
+    .limit(25);
   if (posts.error) return { session, posts: [], paws: [], error: posts.error };
 
   const ids = (posts.data || []).map(post => post.id);
@@ -94,7 +90,7 @@ function postHtml(ctx, post) {
         <span class="pill ${hasPawed ? "owner" : "viewer"}">\uD83D\uDC3E ${paws.length}</span>
       </div>
       <p>${esc(post.body)}</p>
-      ${post.image_data ? `<img class="post-image" src="${esc(post.image_data)}" alt="Public post attachment">` : ""}
+      ${post.image_data ? `<img class="post-image" src="${esc(post.image_data)}" alt="Public post attachment" loading="lazy">` : ""}
       <div class="pill-row" style="margin-top:10px">
         <button class="btn secondary" type="button" data-paw-post="${esc(post.id)}">${hasPawed ? "\uD83D\uDC3E Pawed" : "\uD83D\uDC3E Paw"}</button>
         ${canDelete ? `<button class="btn secondary" type="button" data-delete-public-post="${esc(post.id)}">Delete</button>` : ""}
@@ -222,5 +218,14 @@ function injectPublicTab() {
   button.addEventListener("click", renderPublic);
 }
 
-new MutationObserver(injectPublicTab).observe(document.getElementById("app"), { childList: true, subtree: true });
-injectPublicTab();
+document.addEventListener("click", event => {
+  if (event.target.closest("[data-public-tab]")) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    renderPublic();
+    return;
+  }
+  if (event.target.closest("[data-tab]")) setTimeout(injectPublicTab, 100);
+}, true);
+
+[0, 500, 1500, 3000].forEach(delay => setTimeout(injectPublicTab, delay));
