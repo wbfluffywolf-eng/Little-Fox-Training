@@ -65,9 +65,12 @@ function requestCardHtml(requests) {
             <div class="item-head">
               <div>
                 <h4>${esc(member.households?.name || member.invite_email || "Friend request")}</h4>
-                <p>Accept to share diaper-use views with each other.</p>
+                <p>Accept to share diaper-use views with each other, or deny to remove the request.</p>
               </div>
-              <button class="btn fox" type="button" data-friend-accept-fix="${esc(member.id)}">Accept</button>
+              <div class="pill-row">
+                <button class="btn fox" type="button" data-friend-accept-fix="${esc(member.id)}">Accept</button>
+                <button class="btn secondary" type="button" data-friend-deny-fix="${esc(member.id)}">Deny</button>
+              </div>
             </div>
           </div>
         `).join("")}
@@ -116,6 +119,21 @@ async function acceptRequest(requestId) {
   if (result.error) throw result.error;
 }
 
+async function denyRequest(requestId) {
+  const user = await currentUser();
+  if (!user) throw new Error("Sign in before denying friends.");
+  const requests = await loadIncomingRequests(user.id);
+  const request = requests.find(row => row.id === requestId);
+  if (!request) throw new Error("Friend request was not found.");
+  const { error } = await supabase
+    .from("household_members")
+    .update({ status: "revoked" })
+    .eq("id", request.id)
+    .eq("user_id", user.id)
+    .eq("status", "pending");
+  if (error) throw error;
+}
+
 async function injectFriendRequests() {
   const title = document.querySelector(".topbar h2")?.textContent.trim();
   const view = document.getElementById("view");
@@ -142,6 +160,22 @@ document.addEventListener("click", async event => {
     toast(error.message || "Friend request could not be accepted.");
     button.disabled = false;
     button.textContent = "Accept";
+  }
+});
+
+document.addEventListener("click", async event => {
+  const button = event.target.closest("[data-friend-deny-fix]");
+  if (!button) return;
+  button.disabled = true;
+  button.textContent = "Denying...";
+  try {
+    await denyRequest(button.dataset.friendDenyFix);
+    toast("Friend request denied.");
+    setTimeout(() => location.reload(), 500);
+  } catch (error) {
+    toast(error.message || "Friend request could not be denied.");
+    button.disabled = false;
+    button.textContent = "Deny";
   }
 });
 
