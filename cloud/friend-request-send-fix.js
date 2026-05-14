@@ -58,6 +58,16 @@ async function sendFriendRequest(button) {
       .eq("user_id", userId)
       .maybeSingle();
     if (lookupError) throw lookupError;
+    if (!existing?.id) {
+      const inviteLookup = await supabase
+        .from("household_members")
+        .select("id")
+        .eq("household_id", householdId)
+        .ilike("invite_email", email)
+        .maybeSingle();
+      if (inviteLookup.error) throw inviteLookup.error;
+      existing = inviteLookup.data;
+    }
 
     const row = {
       household_id: householdId,
@@ -71,6 +81,9 @@ async function sendFriendRequest(button) {
     const result = existing?.id
       ? await supabase.from("household_members").update(row).eq("id", existing.id)
       : await supabase.from("household_members").insert(row);
+    if (result.error && /duplicate key|unique constraint/i.test(result.error.message || "")) {
+      throw new Error("That account already has a saved friend row. Try refreshing, then send the request again.");
+    }
     if (result.error) throw result.error;
     toast("Friend request sent.");
     setTimeout(() => location.reload(), 500);
@@ -99,5 +112,9 @@ document.addEventListener("click", event => {
   sendFriendRequest(button);
 }, true);
 
-new MutationObserver(patchSearchText).observe(document.getElementById("app"), { childList: true, subtree: true });
+document.addEventListener("click", event => {
+  if (event.target.closest('[data-tab="settings"]')) setTimeout(patchSearchText, 150);
+});
+
 patchSearchText();
+[500, 1500].forEach(delay => setTimeout(patchSearchText, delay));
