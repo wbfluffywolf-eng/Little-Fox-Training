@@ -2,10 +2,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-let badgeRefreshTimer = null;
-let badgeRefreshRunning = false;
-let lastBadgeCount = null;
-let requestCardInjected = false;
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -57,16 +53,6 @@ async function loadIncomingRequests(userId) {
     .eq("status", "pending");
   if (error) throw error;
   return (data || []).filter(row => row.role !== "owner" && row.households?.owner_id !== userId && row.households);
-}
-
-function setFriendsBadge(count) {
-  const button = document.querySelector("[data-friends-tab]");
-  if (!button) return;
-  if (lastBadgeCount === count && button.dataset.friendRequestCount === String(count)) return;
-  lastBadgeCount = count;
-  const label = count > 0 ? `Friends (${count})` : "Friends";
-  if (button.textContent !== label) button.textContent = label;
-  if (button.dataset.friendRequestCount !== String(count)) button.dataset.friendRequestCount = String(count);
 }
 
 function requestCardHtml(requests) {
@@ -137,37 +123,10 @@ async function injectFriendRequests() {
   const user = await currentUser();
   if (!user) return;
   const requests = await loadIncomingRequests(user.id);
-  setFriendsBadge(requests.length);
   if (!requests.length) return;
   const friendsCard = [...view.querySelectorAll(".card h3")].find(heading => heading.textContent.trim() === "Friends")?.closest(".card");
   if (friendsCard) friendsCard.insertAdjacentHTML("beforebegin", requestCardHtml(requests));
   else view.insertAdjacentHTML("afterbegin", requestCardHtml(requests));
-  requestCardInjected = true;
-}
-
-async function refreshFriendsBadge() {
-  if (badgeRefreshRunning) return;
-  badgeRefreshRunning = true;
-  const user = await currentUser();
-  try {
-    if (!user) {
-      setFriendsBadge(0);
-      return;
-    }
-    const requests = await loadIncomingRequests(user.id);
-    setFriendsBadge(requests.length);
-  } finally {
-    badgeRefreshRunning = false;
-  }
-}
-
-function scheduleFriendRequestRefresh() {
-  if (badgeRefreshTimer) return;
-  badgeRefreshTimer = setTimeout(() => {
-    badgeRefreshTimer = null;
-    refreshFriendsBadge().catch(() => {});
-    if (!requestCardInjected) injectFriendRequests().catch(() => {});
-  }, 750);
 }
 
 document.addEventListener("click", async event => {
@@ -178,7 +137,6 @@ document.addEventListener("click", async event => {
   try {
     await acceptRequest(button.dataset.friendAcceptFix);
     toast("Friend request accepted.");
-    setFriendsBadge(0);
     setTimeout(() => location.reload(), 500);
   } catch (error) {
     toast(error.message || "Friend request could not be accepted.");
@@ -187,5 +145,11 @@ document.addEventListener("click", async event => {
   }
 });
 
-new MutationObserver(scheduleFriendRequestRefresh).observe(document.getElementById("app"), { childList: true, subtree: true });
-scheduleFriendRequestRefresh();
+document.addEventListener("click", event => {
+  if (!event.target.closest("[data-friends-tab]")) return;
+  setTimeout(() => injectFriendRequests().catch(() => {}), 250);
+});
+
+if (document.querySelector(".topbar h2")?.textContent.trim() === "Friends") {
+  injectFriendRequests().catch(() => {});
+}
