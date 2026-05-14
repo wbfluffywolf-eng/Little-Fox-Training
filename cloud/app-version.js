@@ -1,4 +1,4 @@
-const APP_VERSION = "v54";
+const APP_VERSION = "v55";
 
 function injectAppVersion() {
   const title = document.querySelector(".topbar h2")?.textContent.trim();
@@ -15,5 +15,8 @@ function injectAppVersion() {
   view.appendChild(card);
 }
 
-new MutationObserver(injectAppVersion).observe(document.getElementById("app"), { childList: true, subtree: true });
-injectAppVersion();
+document.addEventListener("click", event => {
+  if (event.target.closest('[data-tab="settings"]')) setTimeout(injectAppVersion, 100);
+});
+
+[0, 500, 1500, 3000].forEach(delay => setTimeout(injectAppVersion, delay));
