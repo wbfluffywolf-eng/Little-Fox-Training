@@ -144,6 +144,9 @@ document.addEventListener("click", event => {
 
 document.addEventListener("submit", saveEditor);
 
-const observer = new MutationObserver(enhanceMemberList);
-observer.observe(document.getElementById("app"), { childList: true, subtree: true });
+document.addEventListener("click", event => {
+  if (event.target.closest('[data-tab="settings"]')) setTimeout(enhanceMemberList, 100);
+});
+
 document.addEventListener("DOMContentLoaded", enhanceMemberList);
+[500, 1500, 3000].forEach(delay => setTimeout(enhanceMemberList, delay));
