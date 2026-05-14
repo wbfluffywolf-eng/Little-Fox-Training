@@ -1,4 +1,4 @@
-const CACHE_NAME = "little-fox-training-cloud-v52";
+const CACHE_NAME = "little-fox-training-cloud-v53";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -32,13 +32,7 @@ const APP_SHELL = [
   "./manifest.webmanifest",
   "../assets/app-icon.png",
   "../assets/sidebar-wag-wag.png",
-  "../assets/sidebar-daily-log.png",
-  "../assets/profile-need-diaper.png",
-  "../assets/profile-face-cover.png",
-  "../assets/profile-oh-no.png",
-  "../assets/profile-wag-wag.png",
-  "../assets/profile-ych.png",
-  "../assets/profile-heart.png"
+  "../assets/sidebar-daily-log.png"
 ];
 
 self.addEventListener("install", event => {
