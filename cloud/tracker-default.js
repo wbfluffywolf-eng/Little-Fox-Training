@@ -12,6 +12,10 @@ function defaultToPersonalTracker() {
   sessionStorage.setItem(forcePersonalKey, "1");
 }
 
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
 function decodeJwtSub(token) {
   try {
     const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
@@ -129,28 +133,32 @@ async function ensurePersonalTracker() {
 }
 
 function installMembershipSorter() {
-  const nativeFetch = window.fetch.bind(window);
-  window.fetch = async (input, init) => {
-    const response = await nativeFetch(input, init);
-    try {
-      const url = new URL(typeof input === "string" ? input : input.url);
-      const decodedSearch = decodeURIComponent(url.search);
-      const isMembershipFetch = url.hostname.includes("supabase.co") &&
-        url.pathname.includes("/household_members") &&
-        decodedSearch.includes("households(*)") &&
-        decodedSearch.includes("status=eq.active");
-      if (!isMembershipFetch || !response.ok) return response;
+  // Keep fetch untouched. Network wrappers caused browser-specific auth failures.
+}
 
-      const rows = await response.clone().json();
-      if (!Array.isArray(rows)) return response;
-      const body = JSON.stringify(sortedMemberships(rows, authUserFromRequest(input, init)));
-      const headers = new Headers(response.headers);
-      headers.set("content-type", "application/json; charset=utf-8");
-      return new Response(body, { status: response.status, statusText: response.statusText, headers });
-    } catch {
-      return response;
-    }
-  };
+async function loadSharedMemberships() {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  if (!session) return [];
+  const { data } = await supabase
+    .from("household_members")
+    .select("*, households(*)")
+    .eq("user_id", session.user.id)
+    .eq("status", "active");
+  const personal = localStorage.getItem(personalKey) || "";
+  return (data || []).filter(row => row.id !== personal && row.role !== "owner" && row.households?.owner_id !== session.user.id);
+}
+
+function accessLabel(member) {
+  const tabs = [
+    ["can_view_dashboard", "Dashboard"],
+    ["can_view_calendar", "Calendar"],
+    ["can_view_inventory", "Inventory"],
+    ["can_view_trends", "Trends"],
+    ["can_view_expenses", "Expenses"],
+    ["can_view_messages", "Messages"]
+  ];
+  return tabs.filter(([key]) => member[key] === true).map(([, label]) => label).join(", ") || "Limited access";
 }
 
 async function injectSharedTrackers() {
@@ -177,5 +185,8 @@ installMembershipSorter();
 defaultToPersonalTracker();
 await ensurePersonalTracker();
 await import("./app.js");
-new MutationObserver(injectSharedTrackers).observe(document.getElementById("app"), { childList: true, subtree: true });
-setTimeout(injectSharedTrackers, 0);
+document.addEventListener("click", event => {
+  if (event.target.closest("[data-tab], [data-friends-tab]")) setTimeout(injectSharedTrackers, 100);
+});
+
+[0, 500, 1500].forEach(delay => setTimeout(injectSharedTrackers, delay));
