@@ -71,7 +71,7 @@ function mutualDiaperPermissions() {
 
 function accessText(member) {
   const items = [
-    ["can_suggest_diaper", "Diaper pings"],
+    ["can_suggest_diaper", "Message diaper pings"],
     ["can_view_inventory", "Diaper stock"],
     ["can_view_trends", "Diaper usage"],
     ["can_view_expenses", "Expenses"],
@@ -155,24 +155,6 @@ async function loadFriendData(member) {
   return { diapers: diapers.data || [], logs: logs.data || [], expenses: expenses.data || [] };
 }
 
-function pingCard(member, data) {
-  if (!member.can_suggest_diaper) return "";
-  const options = data.diapers
-    .filter(item => item.item_type === "disposable" || item.item_type === "cloth")
-    .map(item => `<option value="${esc(item.id)}">${esc(item.brand)} ${esc(item.style)}${item.size ? ` (${esc(item.size)})` : ""}</option>`)
-    .join("");
-  return `
-    <article class="card" style="margin-top:14px">
-      <h3>Send Diaper Ping</h3>
-      <form id="friendPingForm" class="grid" style="margin-top:12px" data-household-id="${esc(member.household_id)}">
-        <label>Diaper request<select name="diaper_id" required>${options}</select></label>
-        <label>Message<textarea name="note" rows="3" placeholder="Optional message"></textarea></label>
-        <button class="btn fox" type="submit" ${options ? "" : "disabled"}>Send Ping</button>
-      </form>
-    </article>
-  `;
-}
-
 function statsCard(data) {
   const hasType = (log, type) => log.event === type || log[`${type}_event`] === true || (Array.isArray(log.event_types) && log.event_types.includes(type));
   const wet = data.logs.filter(log => hasType(log, "wet")).length;
@@ -219,7 +201,6 @@ function friendViewHtml(member, data) {
         <button class="btn secondary" type="button" data-friends-back>Back to Friends</button>
       </div>
     </article>
-    ${pingCard(member, data)}
     ${can(member, "can_view_inventory") ? inventoryCard(data) : ""}
     ${can(member, "can_view_dashboard") || can(member, "can_view_trends") ? statsCard(data) : ""}
     ${can(member, "can_view_expenses") ? expensesCard(data) : ""}
@@ -357,20 +338,6 @@ async function denyFriendRequest(ctx, member) {
 function bindFriendView(member) {
   const view = document.getElementById("view");
   view.querySelector("[data-friends-back]")?.addEventListener("click", renderFriends);
-  view.querySelector("#friendPingForm")?.addEventListener("submit", async event => {
-    event.preventDefault();
-    const user = await sessionUser();
-    const data = new FormData(event.currentTarget);
-    const { error } = await supabase.from("diaper_suggestions").insert({
-      household_id: member.household_id,
-      diaper_id: data.get("diaper_id"),
-      suggested_by: user.id,
-      note: String(data.get("note") || "").trim()
-    });
-    if (error) return toast(`Ping could not send: ${error.message}`);
-    event.currentTarget.reset();
-    toast("Diaper ping sent.");
-  });
 }
 
 function injectFriendsTab() {

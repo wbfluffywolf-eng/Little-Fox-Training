@@ -6,6 +6,8 @@ const selectedKey = "littleFoxSelectedSharedTracker";
 const personalKey = "littleFoxPersonalTracker";
 const seenKeyPrefix = "littleFoxMessagesSeen";
 const activeContactKeyPrefix = "littleFoxActiveMessageContact";
+const diaperCheckRequestText = "Diaper check requested. Please send a diaper photo.";
+const diaperCheckReplyText = "Diaper check photo reply.";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -200,16 +202,23 @@ function messageItem(ctx, message) {
   const sender = memberName(ctx, message.sender_id);
   const diaper = message.diapers ? `${message.diapers.brand} ${message.diapers.style}${message.diapers.size ? ` (${message.diapers.size})` : ""}` : "";
   const mine = message.sender_id === ctx.session.user.id;
+  const isDiaperCheck = message.body === diaperCheckRequestText;
+  const isDiaperCheckReply = message.body === diaperCheckReplyText;
   return `
     <div class="message-row ${mine ? "mine" : "theirs"}">
-      <div class="message-bubble">
+      <div class="message-bubble ${isDiaperCheck ? "diaper-check" : ""}">
         <div class="message-meta">
           <span>${mine ? "You" : esc(sender)}</span>
           <time>${esc(new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</time>
         </div>
         <p>${esc(message.body)}</p>
         ${message.image_data ? `<img class="message-image" src="${esc(message.image_data)}" alt="Message attachment" loading="lazy">` : ""}
-        ${diaper ? `<div class="pill-row"><span class="pill viewer">diaper ping</span><span class="pill">${esc(diaper)}</span></div>` : ""}
+        <div class="pill-row">
+          ${isDiaperCheck ? `<span class="pill alert">diaper check</span>` : ""}
+          ${isDiaperCheckReply ? `<span class="pill viewer">diaper check reply</span>` : ""}
+          ${diaper ? `<span class="pill viewer">diaper ping</span><span class="pill">${esc(diaper)}</span>` : ""}
+        </div>
+        ${isDiaperCheck && !mine ? `<button class="btn secondary diaper-check-reply" type="button" data-reply-diaper-check="${esc(message.sender_id)}">Reply with Photo</button>` : ""}
       </div>
     </div>
   `;
@@ -257,9 +266,15 @@ async function renderMessages() {
             <label>Diaper / ping<select name="diaper_id"><option value="">None</option>${ctx.diapers.map(optionHtml).join("")}</select></label>
             <label class="message-photo-field">Photo<input type="file" name="image" accept="image/*"></label>
           </div>
+          <div class="message-action-row">
+            <button class="btn secondary" name="message_action" value="message" type="submit">Send Message</button>
+            <button class="btn secondary" name="message_action" value="diaper_ping" type="submit">Send Diaper Ping</button>
+            <button class="btn fox" name="message_action" value="diaper_check" type="submit">Diaper Check</button>
+            <button class="btn secondary" name="message_action" value="diaper_check_reply" type="submit" hidden>Send Check Photo</button>
+          </div>
           <div class="message-send-row">
             <textarea name="body" maxlength="1000" rows="2" placeholder="Text a message"></textarea>
-            <button class="btn fox" type="submit">Send</button>
+            <button class="btn fox" name="message_action" value="message" type="submit">Send</button>
           </div>
         </form>
       </article>
@@ -274,6 +289,21 @@ async function renderMessages() {
       renderMessages();
     });
   });
+  view.querySelectorAll("[data-reply-diaper-check]").forEach(button => {
+    button.addEventListener("click", () => {
+      const form = document.getElementById("messageForm");
+      if (!form) return;
+      form.elements.recipient_id.value = button.dataset.replyDiaperCheck;
+      setSelectedContact(ctx, button.dataset.replyDiaperCheck);
+      form.elements.body.value = diaperCheckReplyText;
+      form.dataset.pendingAction = "diaper_check_reply";
+      form.querySelector("[name='image']")?.click();
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast("Add a diaper photo, then tap Send Check Photo.");
+      const replyButton = form.querySelector("[value='diaper_check_reply']");
+      if (replyButton) replyButton.hidden = false;
+    });
+  });
   view.querySelector(".message-thread")?.scrollTo({ top: view.querySelector(".message-thread").scrollHeight });
 }
 
@@ -281,24 +311,45 @@ async function saveMessage(event, ctx) {
   event.preventDefault();
   const form = event.currentTarget;
   const data = new FormData(form);
-  const button = form.querySelector("button[type='submit']");
+  const action = event.submitter?.value || form.dataset.pendingAction || "message";
+  const button = event.submitter || form.querySelector("button[type='submit']");
+  const originalButtonText = button.textContent;
   button.disabled = true;
   button.textContent = "Sending...";
   const imageData = await imageFileToDataUrl(data.get("image")).catch(error => {
     toast(error.message);
     return "";
   });
-  const body = String(data.get("body") || "").trim() || (imageData ? "Photo" : "");
+  let body = String(data.get("body") || "").trim();
   const recipientId = String(data.get("recipient_id") || "").trim();
+  const diaperId = String(data.get("diaper_id") || "").trim();
+  if (action === "diaper_ping") {
+    if (!diaperId) {
+      button.disabled = false;
+      button.textContent = originalButtonText;
+      toast("Choose a diaper before sending a diaper ping.");
+      return;
+    }
+    body = body ? `Diaper ping: ${body}` : "Diaper ping.";
+  }
+  if (action === "diaper_check") body = diaperCheckRequestText;
+  if (action === "diaper_check_reply") body = diaperCheckReplyText;
+  if (action === "diaper_check_reply" && !imageData) {
+    button.disabled = false;
+    button.textContent = originalButtonText;
+    toast("A diaper check reply needs a photo.");
+    return;
+  }
+  if (!body && imageData) body = "Photo";
   if (!body) {
     button.disabled = false;
-    button.textContent = "Send";
+    button.textContent = originalButtonText;
     toast("Add a message or photo before sending.");
     return;
   }
   if (!recipientId) {
     button.disabled = false;
-    button.textContent = "Send";
+    button.textContent = originalButtonText;
     toast("Choose a friend first.");
     return;
   }
@@ -307,12 +358,12 @@ async function saveMessage(event, ctx) {
     sender_id: ctx.session.user.id,
     recipient_id: recipientId,
     body,
-    diaper_id: data.get("diaper_id") || null,
+    diaper_id: diaperId || null,
     image_data: imageData || null
   });
   if (error) {
     button.disabled = false;
-    button.textContent = "Send";
+    button.textContent = originalButtonText;
     if (/image_data|schema cache/i.test(error.message || "")) {
       toast("Run media-schema.sql in Supabase to enable message photos.");
       return;
@@ -321,6 +372,7 @@ async function saveMessage(event, ctx) {
     return;
   }
   toast("Message sent.");
+  delete form.dataset.pendingAction;
   renderMessages();
 }
 

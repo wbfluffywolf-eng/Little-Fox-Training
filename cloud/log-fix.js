@@ -28,6 +28,28 @@ function selectedEvents(data) {
   return events.length ? events : [legacyEvent || "wet"];
 }
 
+async function decrementInventory(diaperId, insertIds) {
+  const ids = [diaperId, ...insertIds].filter(Boolean);
+  if (!ids.length) return null;
+
+  const { data: items, error: loadError } = await supabase
+    .from("diapers")
+    .select("id, item_type, stock_count, clean_count")
+    .in("id", ids);
+  if (loadError) return loadError;
+
+  const updates = (items || []).map(item => {
+    const clothLike = ["cloth", "cloth_insert", "underpad"].includes(item.item_type);
+    const next = clothLike
+      ? { clean_count: Math.max(0, Number(item.clean_count ?? item.stock_count ?? 0) - 1) }
+      : { stock_count: Math.max(0, Number(item.stock_count || 0) - 1) };
+    return supabase.from("diapers").update(next).eq("id", item.id);
+  });
+
+  const results = await Promise.all(updates);
+  return results.find(result => result.error)?.error || null;
+}
+
 async function householdForCurrentUser() {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) throw sessionError;
@@ -102,7 +124,14 @@ document.addEventListener("submit", async event => {
     }
     if (error) throw error;
 
-    showToast(events.length > 1 ? "Wet and messed log saved." : "Log saved.");
+    const inventoryError = await decrementInventory(baseRow.diaper_id, baseRow.insert_ids);
+    if (inventoryError) {
+      showToast(`Log saved, but inventory did not update: ${inventoryError.message}`);
+      window.setTimeout(() => window.location.reload(), 1400);
+      return;
+    }
+
+    showToast(events.length > 1 ? "Wet and messed log saved. Inventory updated." : "Log saved. Inventory updated.");
     window.setTimeout(() => window.location.reload(), 700);
   } catch (error) {
     console.error("Daily log save failed", error);
