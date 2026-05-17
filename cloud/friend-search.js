@@ -52,9 +52,9 @@ function searchCardHtml() {
   return `
     <article class="card" id="friendSearchCard">
       <h3>Add Friend</h3>
-      <p>Search for an existing account, then choose what that friend can see in your tracker.</p>
+      <p>Search by username or display name, then send a friend request. They must accept before either tracker is shared.</p>
       <form id="friendSearchForm" class="grid" style="margin-top:12px">
-        <label>Email or name<input name="search" type="search" required autocomplete="off" placeholder="friend@example.com"></label>
+        <label>Username or name<input name="search" type="search" required autocomplete="off" placeholder="littlefox"></label>
         <button class="btn fox" type="submit">Search</button>
       </form>
       <div id="friendSearchResults" class="list" style="margin-top:12px"></div>
@@ -92,10 +92,10 @@ async function runSearch(event) {
     <div class="item">
       <div class="item-head">
         <div>
-          <h4>${esc(row.display_name || row.email)}</h4>
-          <p>${esc(row.email)}</p>
+          <h4>${esc(row.display_name || row.username || row.email || "Little Fox user")}</h4>
+          <p>@${esc(row.username || row.email || "username")}</p>
         </div>
-        <button class="btn secondary" type="button" data-add-profile="${esc(row.id)}" data-email="${esc(row.email)}">Add</button>
+        <button class="btn secondary" type="button" data-add-profile="${esc(row.id)}" data-email="${esc(row.username || row.email)}">Send Request</button>
       </div>
     </div>
   `).join("") || `<div class="empty">No matching accounts found.</div>`;
@@ -103,7 +103,7 @@ async function runSearch(event) {
 
 async function addProfile(button) {
   button.disabled = true;
-  button.textContent = "Adding...";
+  button.textContent = "Sending...";
   try {
     const { householdId } = await ownerHousehold();
     const email = button.dataset.email;
@@ -113,7 +113,7 @@ async function addProfile(button) {
       user_id: userId,
       invite_email: email,
       role: "viewer",
-      status: "active",
+      status: "pending",
       ...permissionValues()
     };
 
@@ -136,15 +136,15 @@ async function addProfile(button) {
     }
 
     const result = existing?.id
-      ? await supabase.from("household_members").update({ ...permissionValues(), status: "active", user_id: userId, invite_email: email }).eq("id", existing.id)
+      ? await supabase.from("household_members").update({ ...permissionValues(), status: "pending", user_id: userId, invite_email: email }).eq("id", existing.id)
       : await supabase.from("household_members").insert(row);
     if (result.error) throw result.error;
-    toast("Friend added.");
+    toast("Friend request sent.");
     setTimeout(() => location.reload(), 500);
   } catch (error) {
-    toast(error.message || "Friend could not be added.");
+    toast(error.message || "Friend request could not be sent.");
     button.disabled = false;
-    button.textContent = "Add";
+    button.textContent = "Send Request";
   }
 }
 
@@ -164,5 +164,9 @@ document.addEventListener("click", event => {
   if (button) addProfile(button);
 });
 
-new MutationObserver(injectFriendSearch).observe(document.getElementById("app"), { childList: true, subtree: true });
+document.addEventListener("click", event => {
+  if (event.target.closest('[data-tab="settings"]')) setTimeout(injectFriendSearch, 100);
+});
+
 injectFriendSearch();
+[500, 1500].forEach(delay => setTimeout(injectFriendSearch, delay));
