@@ -1,4 +1,4 @@
-const CACHE_NAME = "little-fox-training-cloud-v69";
+const CACHE_NAME = "little-fox-training-cloud-v70";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -23,6 +23,7 @@ const APP_SHELL = [
   "./inventory-rebuild.js",
   "./suggestion-fix.js",
   "./messages.js",
+  "./messages-v70-fix.js",
   "./friends-tab.js",
   "./friend-search.js",
   "./friend-request-send-fix.js",
@@ -34,7 +35,7 @@ const APP_SHELL = [
   "./account-rebuild-fix.js",
   "./app-version.js",
   "./all_diaper_catalog_with_prices.csv",
-  "./threaded_armor_ecoable_diapers_boosters.csv",
+  "./threaded_armor_ecoable_quick_add.csv",
   "./manifest.webmanifest",
   "../assets/app-icon.png",
   "../assets/sidebar-wag-wag.png",
