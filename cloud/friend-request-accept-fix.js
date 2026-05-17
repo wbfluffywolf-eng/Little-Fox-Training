@@ -52,7 +52,7 @@ async function loadIncomingRequests(userId) {
     .eq("user_id", userId)
     .eq("status", "pending");
   if (error) throw error;
-  return (data || []).filter(row => row.role !== "owner" && row.households?.owner_id !== userId && row.households);
+  return (data || []).filter(row => row.role !== "owner" && row.households?.owner_id !== userId);
 }
 
 function requestCardHtml(requests) {
@@ -82,41 +82,8 @@ function requestCardHtml(requests) {
 async function acceptRequest(requestId) {
   const user = await currentUser();
   if (!user) throw new Error("Sign in before accepting friends.");
-  const personal = await loadActivePersonal(user.id);
-  if (!personal?.household_id) throw new Error("Your personal tracker was not found.");
-  const requests = await loadIncomingRequests(user.id);
-  const request = requests.find(row => row.id === requestId);
-  if (!request) throw new Error("Friend request was not found.");
-  const requesterId = request.households?.owner_id;
-  if (!requesterId) throw new Error("Friend request owner was not found.");
-
-  const accepted = await supabase
-    .from("household_members")
-    .update({ status: "active" })
-    .eq("id", request.id)
-    .eq("user_id", user.id);
-  if (accepted.error) throw accepted.error;
-
-  const { data: existing, error: lookupError } = await supabase
-    .from("household_members")
-    .select("id")
-    .eq("household_id", personal.household_id)
-    .eq("user_id", requesterId)
-    .maybeSingle();
-  if (lookupError) throw lookupError;
-
-  const reciprocal = {
-    household_id: personal.household_id,
-    user_id: requesterId,
-    role: "viewer",
-    status: "active",
-    ...mutualDiaperPermissions()
-  };
-
-  const result = existing?.id
-    ? await supabase.from("household_members").update(reciprocal).eq("id", existing.id)
-    : await supabase.from("household_members").insert(reciprocal);
-  if (result.error) throw result.error;
+  const { error } = await supabase.rpc("accept_friend_request", { request_member_id: requestId });
+  if (error) throw error;
 }
 
 async function denyRequest(requestId) {
