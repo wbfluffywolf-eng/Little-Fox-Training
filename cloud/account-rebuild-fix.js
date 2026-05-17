@@ -1,6 +1,7 @@
 const selectedKey = "littleFoxSelectedSharedTracker";
 const forcePersonalKey = "littleFoxForcePersonalTracker";
 const pendingFriendKey = "littleFoxPendingFriendView";
+const pendingPersonalTabKey = "littleFoxPendingPersonalTab";
 
 const personalTabs = new Set(["dashboard", "log", "inventory", "calendar", "trends", "cloth", "expenses", "settings", "messages"]);
 
@@ -11,6 +12,20 @@ function friendViewIsPending() {
 function forceOwnTracker() {
   sessionStorage.removeItem(selectedKey);
   sessionStorage.setItem(forcePersonalKey, "1");
+}
+
+function isRestrictedContext() {
+  const subtitle = document.querySelector(".topbar p")?.textContent.trim().toLowerCase() || "";
+  return subtitle.includes("restricted friend") || subtitle.includes("shared diaper tracker") || Boolean(sessionStorage.getItem(selectedKey));
+}
+
+function openPendingPersonalTab() {
+  const pendingTab = sessionStorage.getItem(pendingPersonalTabKey);
+  if (!pendingTab) return;
+  const button = document.querySelector(`[data-tab="${pendingTab}"]`);
+  if (!button || button.hidden) return;
+  sessionStorage.removeItem(pendingPersonalTabKey);
+  button.click();
 }
 
 function isFriendsPage() {
@@ -82,14 +97,21 @@ function keepOwnTrackerDefault() {
   removeFriendUsageFromMainTabs();
   ensureLogButtonForPersonalTabs();
   recoverReadOnlyDailyLog();
+  openPendingPersonalTab();
 }
 
 document.addEventListener("click", event => {
   const tab = event.target.closest("[data-tab]")?.dataset.tab;
   if (event.target.closest("[data-friends-my-log], [data-friends-my-dashboard], [data-log-my-diaper]") || personalTabs.has(tab)) {
     forceOwnTracker();
+    if (personalTabs.has(tab) && isRestrictedContext() && !friendViewIsPending()) {
+      sessionStorage.setItem(pendingPersonalTabKey, tab);
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      location.reload();
+    }
   }
-});
+}, true);
 
 document.addEventListener("click", event => {
   if (event.target.closest("[data-tab], [data-friends-tab]")) setTimeout(keepOwnTrackerDefault, 100);
