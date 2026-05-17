@@ -35,7 +35,7 @@ const APP_SHELL = [
   "./account-rebuild-fix.js",
   "./app-version.js",
   "./all_diaper_catalog_with_prices.csv",
-  "./threaded_armor_ecoable_quick_add.csv",
+  "./threaded_armor_ecoable_diapers_boosters.csv",
   "./manifest.webmanifest",
   "../assets/app-icon.png",
   "../assets/sidebar-wag-wag.png",
