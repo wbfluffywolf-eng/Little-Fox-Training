@@ -89,7 +89,8 @@ function renderDashboardLogs(logs) {
     if (value) value.textContent = `${s.wet} / ${s.messed}`;
     if (sub) sub.textContent = `${s.leaks} leaks`;
   }
-  const recent = [...document.querySelectorAll(".card h3")].find(h => h.textContent.trim() === "Recent Activity")?.closest(".card")?.querySelector(".list");
+  const logListTitles = ["Recent Activity", "Recent Logs", "Month Activity"];
+  const recent = [...document.querySelectorAll(".card h3")].find(h => logListTitles.includes(h.textContent.trim()))?.closest(".card")?.querySelector(".list");
   if (recent) recent.innerHTML = logs.slice(0, 8).map(logItem).join("") || `<div class="empty">No visible logs yet.</div>`;
 }
 
