@@ -36,6 +36,7 @@ async function loadContext() {
     .eq("status", "active");
   const selectedId = sessionStorage.getItem(selectedKey);
   const personalId = localStorage.getItem(personalKey);
+  const activeMemberships = memberships || [];
   const ownerMember = (memberships || []).find(row => row.role === "owner" || row.households?.owner_id === session.user.id);
   const member = ownerMember
     || (memberships || []).find(row => row.id === personalId)
@@ -43,19 +44,24 @@ async function loadContext() {
     || memberships?.[0];
   const household = member?.households;
   if (!member || !household) return null;
+  const householdIds = [...new Set(activeMemberships.map(row => row.household_id).filter(Boolean))];
   const [members, diapers, messages] = await Promise.all([
-    supabase.from("household_members").select("*").eq("household_id", household.id),
+    householdIds.length
+      ? supabase.from("household_members").select("*, households(owner_id, name)").in("household_id", householdIds).eq("status", "active")
+      : Promise.resolve({ data: [] }),
     can(member, household, session.user.id, "can_view_inventory")
       ? supabase.from("diapers").select("id, brand, style, size").eq("household_id", household.id).order("created_at", { ascending: false }).limit(120)
       : Promise.resolve({ data: [] }),
-    can(member, household, session.user.id, "can_view_messages")
-      ? supabase.from("messages").select("*, diapers(brand, style, size)").eq("household_id", household.id).order("created_at", { ascending: false }).limit(50)
+    householdIds.length && activeMemberships.some(row => can(row, row.households, session.user.id, "can_view_messages"))
+      ? supabase.from("messages").select("*, diapers(brand, style, size)").in("household_id", householdIds).order("created_at", { ascending: false }).limit(200)
       : Promise.resolve({ data: [], error: null })
   ]);
   return {
     session,
     member,
     household,
+    memberships: activeMemberships,
+    householdIds,
     members: members.data || [],
     diapers: diapers.data || [],
     messages: messages.data || [],
@@ -104,9 +110,14 @@ function recipientOptions(ctx) {
 }
 
 function messageContacts(ctx) {
-  return ctx.members
+  const byUser = new Map();
+  ctx.members
     .filter(member => member.user_id && member.user_id !== ctx.session.user.id && member.status === "active")
-    .sort((a, b) => String(a.invite_email || "").localeCompare(String(b.invite_email || "")));
+    .forEach(member => {
+      const existing = byUser.get(member.user_id);
+      if (!existing || member.households?.owner_id === ctx.session.user.id) byUser.set(member.user_id, member);
+    });
+  return [...byUser.values()].sort((a, b) => String(a.invite_email || "").localeCompare(String(b.invite_email || "")));
 }
 
 function activeContactKey(householdId) {
@@ -121,6 +132,21 @@ function selectedContactId(ctx) {
 
 function setSelectedContact(ctx, userId) {
   if (userId) sessionStorage.setItem(activeContactKey(ctx.household.id), userId);
+}
+
+function conversationHouseholdId(ctx, contactId) {
+  if (!contactId) return ctx.household.id;
+  const ownerId = [ctx.session.user.id, contactId].sort()[0];
+  const owned = ctx.members.find(member =>
+    member.user_id === contactId &&
+    member.households?.owner_id === ownerId &&
+    member.status === "active"
+  ) || ctx.members.find(member =>
+    member.user_id === ctx.session.user.id &&
+    member.households?.owner_id === ownerId &&
+    member.status === "active"
+  );
+  return owned?.household_id || ctx.household.id;
 }
 
 function threadMessages(ctx, contactId) {
@@ -244,6 +270,7 @@ async function renderMessages() {
   const activeContact = selectedContactId(ctx);
   const activeContactName = memberName(ctx, activeContact);
   const messages = threadMessages(ctx, activeContact).reverse();
+  const activeHouseholdId = conversationHouseholdId(ctx, activeContact);
   view.innerHTML = `
     <section class="message-layout">
       ${contactList(ctx, activeContact)}
@@ -263,6 +290,7 @@ async function renderMessages() {
         <form id="messageForm">
           <div class="message-composer-tools">
             <label>To<select name="recipient_id" required>${recipientOptions(ctx)}</select></label>
+            <input type="hidden" name="household_id" value="${esc(activeHouseholdId)}">
             <label>Diaper / ping<select name="diaper_id"><option value="">None</option>${ctx.diapers.map(optionHtml).join("")}</select></label>
             <label class="message-photo-field">Photo<input type="file" name="image" accept="image/*"></label>
           </div>
@@ -322,6 +350,7 @@ async function saveMessage(event, ctx) {
   });
   let body = String(data.get("body") || "").trim();
   const recipientId = String(data.get("recipient_id") || "").trim();
+  const householdId = String(data.get("household_id") || "").trim() || conversationHouseholdId(ctx, recipientId);
   const diaperId = String(data.get("diaper_id") || "").trim();
   if (action === "diaper_ping") {
     if (!diaperId) {
@@ -354,7 +383,7 @@ async function saveMessage(event, ctx) {
     return;
   }
   const { error } = await supabase.from("messages").insert({
-    household_id: ctx.household.id,
+    household_id: householdId,
     sender_id: ctx.session.user.id,
     recipient_id: recipientId,
     body,
