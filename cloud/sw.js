@@ -1,4 +1,4 @@
-const CACHE_NAME = "little-fox-training-cloud-v71";
+const CACHE_NAME = "little-fox-training-cloud-v72";
 const APP_SHELL = [
   "./",
   "./index.html",
