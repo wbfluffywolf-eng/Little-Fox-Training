@@ -133,7 +133,32 @@ async function ensurePersonalTracker() {
 }
 
 function installMembershipSorter() {
-  // Keep fetch untouched. Network wrappers caused browser-specific auth failures.
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const response = await nativeFetch(input, init);
+    try {
+      const rawUrl = typeof input === "string" ? input : input?.url;
+      if (!rawUrl || !response.ok) return response;
+      const url = new URL(rawUrl, window.location.href);
+      const isMembershipRead = url.hostname.includes("supabase.co")
+        && url.pathname.includes("/rest/v1/household_members")
+        && (init?.method || input?.method || "GET").toUpperCase() === "GET";
+      if (!isMembershipRead) return response;
+
+      const clone = response.clone();
+      const rows = await clone.json();
+      if (!Array.isArray(rows)) return response;
+      const userId = authUserFromRequest(input, init);
+      const sorted = sortedMemberships(rows, userId);
+      return new Response(JSON.stringify(sorted), {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers
+      });
+    } catch {
+      return response;
+    }
+  };
 }
 
 async function loadSharedMemberships() {
