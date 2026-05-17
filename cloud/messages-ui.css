@@ -41,6 +41,21 @@
   margin: 4px 0 0;
 }
 
+.wearing-mark {
+  color: var(--fox);
+  display: inline-grid;
+  place-items: center;
+  width: 1.35em;
+  height: 1.35em;
+  margin-right: 4px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.72em;
+  font-weight: 900;
+  line-height: 1;
+  vertical-align: 0.08em;
+}
+
 .message-thread {
   display: grid;
   gap: 10px;
