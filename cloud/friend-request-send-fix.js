@@ -98,7 +98,7 @@ function patchSearchText() {
   const card = document.getElementById("friendSearchCard");
   if (!card) return;
   const body = card.querySelector("p");
-  if (body) body.textContent = "Search for an existing account, then send a friend request. They must accept before either tracker is shared.";
+  if (body) body.textContent = "Search by username or display name, then send a friend request. They must accept before either tracker is shared.";
   card.querySelectorAll("[data-add-profile]").forEach(button => {
     if (!button.disabled) button.textContent = "Send Request";
   });
