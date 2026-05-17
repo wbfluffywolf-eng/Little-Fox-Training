@@ -50,7 +50,7 @@ async function loadMemberships() {
   const active = (data || []).filter(row => row.status === "active");
   const personal = active.find(row => row.id === personalId || row.role === "owner" || row.households?.owner_id === user.id);
   const shared = active.filter(row => row.id !== personal?.id && row.role !== "owner" && row.households?.owner_id !== user.id && row.households);
-  const incoming = (data || []).filter(row => row.status === "pending" && row.role !== "owner" && row.households?.owner_id !== user.id && row.households);
+  const incoming = (data || []).filter(row => row.status === "pending" && row.role !== "owner" && row.households?.owner_id !== user.id);
   return { user, personal, shared, incoming };
 }
 
@@ -291,38 +291,8 @@ function bindFriendsList(ctx) {
 }
 
 async function acceptFriendRequest(ctx, member) {
-  if (!ctx.personal?.household_id) throw new Error("Your personal tracker was not found.");
-  const requesterId = member.households?.owner_id;
-  if (!requesterId) throw new Error("The friend request owner was not found.");
-  const permissions = mutualDiaperPermissions();
-
-  const accepted = await supabase
-    .from("household_members")
-    .update({ status: "active" })
-    .eq("id", member.id)
-    .eq("user_id", ctx.user.id);
-  if (accepted.error) throw accepted.error;
-
-  let { data: existing, error: lookupError } = await supabase
-    .from("household_members")
-    .select("id")
-    .eq("household_id", ctx.personal.household_id)
-    .eq("user_id", requesterId)
-    .maybeSingle();
-  if (lookupError) throw lookupError;
-
-  const reciprocal = {
-    household_id: ctx.personal.household_id,
-    user_id: requesterId,
-    role: "viewer",
-    status: "active",
-    ...permissions
-  };
-
-  const result = existing?.id
-    ? await supabase.from("household_members").update(reciprocal).eq("id", existing.id)
-    : await supabase.from("household_members").insert(reciprocal);
-  if (result.error) throw result.error;
+  const { error } = await supabase.rpc("accept_friend_request", { request_member_id: member.id });
+  if (error) throw error;
 }
 
 async function denyFriendRequest(ctx, member) {
