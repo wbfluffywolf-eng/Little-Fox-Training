@@ -7,6 +7,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   display_name text,
+  username text,
   created_at timestamptz not null default now()
 );
 
@@ -76,7 +77,24 @@ alter table public.logs add column if not exists changed_at timestamptz;
 alter table public.logs add column if not exists subcategory text;
 alter table public.household_members add column if not exists can_view_messages boolean not null default true;
 alter table public.household_members add column if not exists can_send_messages boolean not null default true;
-alter table public.household_members add column if not exists can_add_logs boolean not null default false;
+alter table public.profiles add column if not exists username text;
+
+update public.profiles
+set username = left(
+  regexp_replace(
+    regexp_replace(lower(coalesce(nullif(display_name, ''), split_part(email, '@', 1), 'user')), '[^a-z0-9_]+', '_', 'g'),
+    '(^_+|_+$)',
+    '',
+    'g'
+  ) || '_' || left(replace(id::text, '-', ''), 6),
+  24
+)
+where username is null or username = '';
+
+alter table public.profiles alter column username set not null;
+alter table public.profiles drop constraint if exists profiles_username_format;
+alter table public.profiles add constraint profiles_username_format check (username ~ '^[a-z0-9_]{3,24}$');
+create unique index if not exists profiles_username_lower_key on public.profiles (lower(username));
 
 create table if not exists public.expenses (
   id uuid primary key default gen_random_uuid(),
@@ -222,11 +240,35 @@ as $$
   );
 $$;
 
+create or replace function public.default_username(user_email text, user_id uuid)
+returns text
+language sql
+immutable
+as $$
+  select left(
+    case
+      when length(base_name) >= 3 then base_name
+      else 'user_' || left(replace(user_id::text, '-', ''), 8)
+    end || '_' || left(replace(user_id::text, '-', ''), 6),
+    24
+  )
+  from (
+    select regexp_replace(
+      regexp_replace(lower(coalesce(nullif(split_part(user_email, '@', 1), ''), 'user')), '[^a-z0-9_]+', '_', 'g'),
+      '(^_+|_+$)',
+      '',
+      'g'
+    ) as base_name
+  ) cleaned;
+$$;
+
+drop function if exists public.search_profiles(text);
 create or replace function public.search_profiles(search_text text)
 returns table (
   id uuid,
   email text,
-  display_name text
+  display_name text,
+  username text
 )
 language sql
 security definer
@@ -234,22 +276,123 @@ set search_path = public, auth
 as $$
   select
     u.id,
-    coalesce(u.email, p.email, '') as email,
-    coalesce(p.display_name, split_part(coalesce(u.email, p.email, ''), '@', 1)) as display_name
+    coalesce(p.username, public.default_username(u.email, u.id)) as email,
+    coalesce(p.display_name, p.username, split_part(coalesce(u.email, p.email, ''), '@', 1)) as display_name,
+    coalesce(p.username, public.default_username(u.email, u.id)) as username
   from auth.users u
   left join public.profiles p on p.id = u.id
   where auth.uid() is not null
     and u.id <> auth.uid()
     and length(trim(search_text)) >= 2
     and (
-      lower(coalesce(u.email, p.email, '')) like '%' || lower(trim(search_text)) || '%'
+      lower(coalesce(p.username, '')) like '%' || lower(trim(search_text)) || '%'
       or lower(coalesce(p.display_name, '')) like '%' || lower(trim(search_text)) || '%'
     )
-  order by coalesce(u.email, p.email, '')
+  order by coalesce(p.username, p.display_name, '')
   limit 12;
 $$;
 
 grant execute on function public.search_profiles(text) to authenticated;
+
+create or replace function public.accept_friend_request(request_member_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  request_row record;
+  personal_household_id uuid;
+begin
+  if current_user_id is null then
+    raise exception 'Sign in before accepting friends.';
+  end if;
+
+  select hm.*, h.owner_id as requester_id
+  into request_row
+  from public.household_members hm
+  join public.households h on h.id = hm.household_id
+  where hm.id = request_member_id
+    and hm.user_id = current_user_id
+    and hm.status = 'pending'
+    and hm.role <> 'owner'
+  limit 1;
+
+  if request_row.id is null then
+    raise exception 'Friend request was not found.';
+  end if;
+
+  select hm.household_id
+  into personal_household_id
+  from public.household_members hm
+  join public.households h on h.id = hm.household_id
+  where hm.user_id = current_user_id
+    and hm.status = 'active'
+    and (hm.role = 'owner' or h.owner_id = current_user_id)
+  order by hm.created_at
+  limit 1;
+
+  if personal_household_id is null then
+    raise exception 'Your personal tracker was not found.';
+  end if;
+
+  update public.household_members
+  set status = 'active'
+  where id = request_row.id
+    and user_id = current_user_id;
+
+  insert into public.household_members (
+    household_id,
+    user_id,
+    invite_email,
+    role,
+    status,
+    can_view_dashboard,
+    can_view_calendar,
+    can_view_inventory,
+    can_view_trends,
+    can_view_expenses,
+    can_view_messages,
+    can_send_messages,
+    can_view_settings,
+    can_suggest_diaper,
+    can_add_logs
+  )
+  values (
+    personal_household_id,
+    request_row.requester_id,
+    null,
+    'viewer',
+    'active',
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    false,
+    true,
+    false
+  )
+  on conflict (household_id, user_id) do update
+    set status = 'active',
+        role = 'viewer',
+        can_view_dashboard = true,
+        can_view_calendar = true,
+        can_view_inventory = true,
+        can_view_trends = true,
+        can_view_expenses = false,
+        can_view_messages = true,
+        can_send_messages = true,
+        can_view_settings = false,
+        can_suggest_diaper = true,
+        can_add_logs = false;
+end;
+$$;
+
+grant execute on function public.accept_friend_request(uuid) to authenticated;
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -260,15 +403,17 @@ as $$
 declare
   tracker_id uuid;
 begin
-  insert into public.profiles (id, email, display_name)
+  insert into public.profiles (id, email, display_name, username)
   values (
     new.id,
     coalesce(new.email, ''),
-    coalesce(new.raw_user_meta_data ->> 'display_name', split_part(coalesce(new.email, ''), '@', 1))
+    coalesce(new.raw_user_meta_data ->> 'display_name', split_part(coalesce(new.email, ''), '@', 1)),
+    public.default_username(new.email, new.id)
   )
   on conflict (id) do update
     set email = excluded.email,
-        display_name = coalesce(public.profiles.display_name, excluded.display_name);
+        display_name = coalesce(public.profiles.display_name, excluded.display_name),
+        username = coalesce(public.profiles.username, excluded.username);
 
   select id into tracker_id
   from public.households
@@ -347,15 +492,17 @@ begin
   for existing_user in
     select id, email, raw_user_meta_data from auth.users
   loop
-    insert into public.profiles (id, email, display_name)
+    insert into public.profiles (id, email, display_name, username)
     values (
       existing_user.id,
       coalesce(existing_user.email, ''),
-      coalesce(existing_user.raw_user_meta_data ->> 'display_name', split_part(coalesce(existing_user.email, ''), '@', 1))
+      coalesce(existing_user.raw_user_meta_data ->> 'display_name', split_part(coalesce(existing_user.email, ''), '@', 1)),
+      public.default_username(existing_user.email, existing_user.id)
     )
     on conflict (id) do update
       set email = excluded.email,
-          display_name = coalesce(public.profiles.display_name, excluded.display_name);
+          display_name = coalesce(public.profiles.display_name, excluded.display_name),
+          username = coalesce(public.profiles.username, excluded.username);
 
     select id into tracker_id
     from public.households
