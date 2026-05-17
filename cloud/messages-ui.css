@@ -147,22 +147,26 @@
   margin-top: 12px;
 }
 
+.message-composer form {
+  display: grid;
+  gap: 12px;
+}
+
 .message-composer-tools {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 10px;
 }
 
 .message-action-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 10px;
 }
 
 .message-action-row .btn {
   min-height: 40px;
+  flex: 1 1 150px;
 }
 
 .message-send-row {
@@ -182,6 +186,11 @@
   min-height: 46px;
   border-radius: 18px;
   padding-inline: 18px;
+}
+
+.diaper-check-reply-mode .message-action-row [value="diaper_ping"],
+.diaper-check-reply-mode .message-action-row [value="diaper_check"] {
+  display: none;
 }
 
 @media (max-width: 560px) {
