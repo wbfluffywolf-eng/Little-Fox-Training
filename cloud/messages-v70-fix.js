@@ -85,18 +85,32 @@ function option(item) {
   return `<option value="${esc(item.id)}">${esc(item.brand)} ${esc(item.style)}${item.size ? ` (${esc(item.size)})` : ""}</option>`;
 }
 
+async function loadFriendDiapers(ctx, contactId) {
+  const householdId = ownedHousehold(ctx, contactId);
+  const cached = ctx.diapers.filter(item => item.household_id === householdId);
+  if (cached.length || !householdId) return cached;
+  const { data } = await supabase
+    .from("diapers")
+    .select("id, household_id, brand, style, size")
+    .eq("household_id", householdId)
+    .order("created_at", { ascending: false })
+    .limit(250);
+  return data || [];
+}
+
 async function patchMessagesUi() {
   const form = document.getElementById("messageForm");
   if (!form) return;
   const ctx = await context();
   if (!ctx) return;
   const contactId = activeContactId();
-  const householdId = ownedHousehold(ctx, contactId);
-  const friendDiapers = ctx.diapers.filter(item => item.household_id === householdId);
+  const friendDiapers = await loadFriendDiapers(ctx, contactId);
   const diaperSelect = form.elements.diaper_id;
-  if (diaperSelect && friendDiapers.length) {
+  if (diaperSelect) {
     diaperSelect.closest("label").childNodes[0].textContent = "Friend's diaper / ping";
-    diaperSelect.innerHTML = `<option value="">None</option>${friendDiapers.map(option).join("")}`;
+    diaperSelect.innerHTML = friendDiapers.length
+      ? `<option value="">None</option>${friendDiapers.map(option).join("")}`
+      : `<option value="">No visible friend diapers</option>`;
   }
   if (!form.elements.check_state) {
     const label = document.createElement("label");
@@ -117,6 +131,12 @@ async function patchMessagesUi() {
   });
   const title = document.querySelector(".message-title h3");
   if (title && contactId && !title.querySelector(".wearing-mark")) title.innerHTML = `${markText(ctx, contactId)}${title.innerHTML}`;
+  if (!form.dataset.friendInventoryBound) {
+    form.dataset.friendInventoryBound = "true";
+    form.elements.recipient_id?.addEventListener("change", () => {
+      setTimeout(() => patchMessagesUi().catch(() => {}), 0);
+    });
+  }
 }
 
 function imageFileToDataUrl(file) {
