@@ -2,6 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const APP_VERSION = "v75";
+const LATEST_LINK = "https://wbfluffywolf-eng.github.io/Little-Fox-Training/cloud/?v=75";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -61,6 +63,18 @@ function collapseWetMessLists() {
       if (item.querySelector("h4")?.dataset.mergedWetMess === "true") continue;
       const match = items.slice(i + 1).find(other => isSameWetMessChange(item, other));
       if (match) mergeRecentPair(item, match);
+    }
+  });
+}
+
+function patchLatestReleaseText() {
+  document.querySelectorAll(".launch-link").forEach(link => {
+    link.textContent = LATEST_LINK;
+    link.setAttribute("href", LATEST_LINK);
+  });
+  document.querySelectorAll("#launchReadinessCard .muted").forEach(node => {
+    if (/Current release:/i.test(node.textContent || "")) {
+      node.textContent = `Current release: Little Fox Training Cloud ${APP_VERSION}`;
     }
   });
 }
@@ -174,6 +188,7 @@ async function injectDiaperPerformance() {
 }
 
 function refreshUsagePolish() {
+  patchLatestReleaseText();
   collapseWetMessLists();
   injectCathStentControls();
   injectDiaperPerformance().catch(() => {});
