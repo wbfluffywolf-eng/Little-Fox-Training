@@ -1,0 +1,123 @@
+const extraOptionsKey = "littleFoxLogExtraOptions";
+const defaultExtraOptions = {
+  cathStent: true,
+  chastity: false
+};
+
+function loadExtraOptions() {
+  try {
+    return { ...defaultExtraOptions, ...JSON.parse(localStorage.getItem(extraOptionsKey) || "{}") };
+  } catch {
+    return { ...defaultExtraOptions };
+  }
+}
+
+function saveExtraOptions(options) {
+  localStorage.setItem(extraOptionsKey, JSON.stringify(options));
+}
+
+function toast(message) {
+  const toastEl = document.getElementById("toast");
+  if (!toastEl) return;
+  toastEl.textContent = message;
+  toastEl.classList.add("show");
+  setTimeout(() => toastEl.classList.remove("show"), 2600);
+}
+
+function extraOptionsPanel() {
+  const panel = document.querySelector("[data-log-auto-panel]");
+  if (!panel || panel.querySelector("[data-log-extra-options]")) return;
+  const options = loadExtraOptions();
+  const wrap = document.createElement("div");
+  wrap.dataset.logExtraOptions = "true";
+  wrap.className = "form-grid";
+  wrap.innerHTML = `
+    <strong>Log Change Options</strong>
+    <label>
+      <input type="checkbox" name="show_cath_stent" ${options.cathStent ? "checked" : ""}>
+      <span>Show cath / stent use</span>
+    </label>
+    <label>
+      <input type="checkbox" name="show_chastity" ${options.chastity ? "checked" : ""}>
+      <span>Show chastity use</span>
+    </label>
+  `;
+  const saveButton = panel.querySelector("[data-save-auto-slots]");
+  panel.insertBefore(wrap, saveButton || null);
+}
+
+function removeCathStentControls(form) {
+  form.querySelector('[data-catheter-stent-note="true"]')?.remove();
+  form.querySelector('[data-cath-stent-state="true"]')?.remove();
+}
+
+function removeChastityControls(form) {
+  form.querySelector('[data-chastity-note="true"]')?.remove();
+  form.querySelector('[data-chastity-state="true"]')?.remove();
+}
+
+function injectChastityControls(form) {
+  if (form.querySelector('[data-chastity-note="true"]')) return;
+  const notes = form.querySelector('textarea[name="notes"]');
+  if (!notes) return;
+  const check = document.createElement("label");
+  check.dataset.chastityNote = "true";
+  check.innerHTML = `<span><input type="checkbox" name="chastity_note"> Chastity use</span>`;
+  const state = document.createElement("label");
+  state.dataset.chastityState = "true";
+  state.innerHTML = `Chastity state<select name="chastity_state">
+    <option value="locked">Locked</option>
+    <option value="unlocked">Unlocked</option>
+    <option value="changed cage">Changed cage</option>
+    <option value="cleaning">Cleaning</option>
+    <option value="discomfort">Discomfort</option>
+  </select>`;
+  notes.closest("label")?.insertAdjacentElement("beforebegin", state);
+  notes.closest("label")?.insertAdjacentElement("beforebegin", check);
+}
+
+function applyControls() {
+  extraOptionsPanel();
+  const options = loadExtraOptions();
+  document.querySelectorAll("#logForm, #clothWearForm").forEach(form => {
+    if (!options.cathStent) removeCathStentControls(form);
+    if (options.chastity) injectChastityControls(form);
+    else removeChastityControls(form);
+  });
+}
+
+function appendChastityNote(form) {
+  if (!loadExtraOptions().chastity) return;
+  if (!form.querySelector('[name="chastity_note"]:checked')) return;
+  const notes = form.querySelector('textarea[name="notes"]');
+  if (!notes) return;
+  const state = form.querySelector('[name="chastity_state"]')?.value;
+  const addition = state ? `Chastity use: ${state}.` : "Chastity use.";
+  const current = notes.value.trim();
+  if (current.toLowerCase().includes("chastity use")) return;
+  notes.value = current ? `${current} ${addition}` : addition;
+}
+
+document.addEventListener("change", event => {
+  const input = event.target.closest?.('[data-log-extra-options] input[type="checkbox"]');
+  if (!input) return;
+  const options = loadExtraOptions();
+  if (input.name === "show_cath_stent") options.cathStent = input.checked;
+  if (input.name === "show_chastity") options.chastity = input.checked;
+  saveExtraOptions(options);
+  applyControls();
+  toast("Log change options saved.");
+});
+
+document.addEventListener("click", event => {
+  const form = event.target.closest?.('#logForm button[type="submit"], #clothWearForm button[type="submit"]')?.closest("form");
+  if (form) appendChastityNote(form);
+  if (event.target.closest?.("[data-tab]")) setTimeout(applyControls, 180);
+}, true);
+
+document.addEventListener("submit", event => {
+  if (event.target?.matches?.("#logForm, #clothWearForm")) appendChastityNote(event.target);
+}, true);
+
+new MutationObserver(applyControls).observe(document.body, { childList: true, subtree: true });
+[0, 400, 1000, 2200].forEach(delay => setTimeout(applyControls, delay));
