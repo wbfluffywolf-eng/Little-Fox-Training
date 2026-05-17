@@ -34,6 +34,14 @@ function addCatheterStentNoteControl(textarea) {
 function patchLogForms() {
   document.querySelectorAll('select[name="subcategory"]').forEach(removeCatheterStentSubcategory);
   document.querySelectorAll('textarea[name="notes"]').forEach(addCatheterStentNoteControl);
+  document.querySelectorAll('select[name="diaper_id"]').forEach(select => {
+    const label = select.closest("label");
+    if (!label) return;
+    const text = label.childNodes[0];
+    if (text?.nodeType === Node.TEXT_NODE && /diaper|underpad/i.test(text.textContent || "")) {
+      text.textContent = "New diaper put on";
+    }
+  });
 }
 
 document.addEventListener("submit", event => {
