@@ -2,8 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-const APP_VERSION = "v73";
-const LATEST_LINK = "https://wbfluffywolf-eng.github.io/Little-Fox-Training/cloud/?v=73";
+const APP_VERSION = "v82";
+const LATEST_LINK = "https://wbfluffywolf-eng.github.io/Little-Fox-Training/cloud/?v=82";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -186,32 +186,7 @@ async function injectDashboardQuickStart() {
 }
 
 async function injectSettingsReadiness() {
-  const view = document.getElementById("view");
-  if (!view || currentTitle() !== "Settings" || document.getElementById("launchReadinessCard")) return;
-  if (!(await getUser())) return;
-  view.insertAdjacentHTML("beforeend", `
-    <article class="card launch-card" id="launchReadinessCard">
-      <h3>Before Inviting Friends</h3>
-      <p>Run this quick check before sending the app to a bunch of people.</p>
-      <ul class="launch-checklist">
-        <li>Open the app on your phone and confirm signup and login both work.</li>
-        <li>Set a username so friends can search without using email.</li>
-        <li>Add one brand-new friend account by username.</li>
-        <li>Accept or deny the friend request from the Friends tab.</li>
-        <li>Send a message both ways.</li>
-        <li>Send a diaper ping using the friend's visible inventory.</li>
-        <li>Send a diaper check and reply with a photo plus wet, dry, or messy.</li>
-        <li>Log a diaper change and confirm inventory count changes.</li>
-        <li>Confirm friends cannot open your Settings or private areas.</li>
-      </ul>
-      <p><strong>Cache note:</strong> if the app looks old, open the latest link and fully close then reopen the app.</p>
-      <p><a class="launch-link" href="${esc(LATEST_LINK)}">${esc(LATEST_LINK)}</a></p>
-      <div class="button-row">
-        <button class="btn secondary" type="button" data-copy-latest-link>Copy Latest Link</button>
-      </div>
-      <p class="muted">Current release: Little Fox Training Cloud ${esc(APP_VERSION)}</p>
-    </article>
-  `);
+  document.getElementById("launchReadinessCard")?.remove();
 }
 
 function refreshLaunchCards() {
