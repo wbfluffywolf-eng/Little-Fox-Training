@@ -56,6 +56,51 @@ async function latestWearing(householdId) {
   };
 }
 
+async function decrementInventory(diaperId, insertIds) {
+  const ids = [diaperId, ...insertIds].filter(Boolean);
+  if (!ids.length) return null;
+  const { data: items, error: loadError } = await supabase
+    .from("diapers")
+    .select("id, item_type, stock_count, clean_count")
+    .in("id", ids);
+  if (loadError) return loadError;
+  const updates = (items || []).map(item => {
+    const clothLike = ["cloth", "cloth_insert", "underpad"].includes(item.item_type);
+    const next = clothLike
+      ? { clean_count: Math.max(0, Number(item.clean_count ?? item.stock_count ?? 0) - 1) }
+      : { stock_count: Math.max(0, Number(item.stock_count || 0) - 1) };
+    return supabase.from("diapers").update(next).eq("id", item.id);
+  });
+  const results = await Promise.all(updates);
+  return results.find(result => result.error)?.error || null;
+}
+
+async function inventoryItems(householdId) {
+  const { data } = await supabase
+    .from("diapers")
+    .select("id, item_type, stock_count, clean_count")
+    .eq("household_id", householdId)
+    .limit(1000);
+  return data || [];
+}
+
+function inventoryCountLabel(item) {
+  if (!item) return "";
+  const count = ["cloth", "cloth_insert", "underpad"].includes(item.item_type)
+    ? Number(item.clean_count ?? item.stock_count ?? 0)
+    : Number(item.stock_count ?? 0);
+  return Number.isFinite(count) ? ` - ${count} in inventory` : "";
+}
+
+function annotateInventoryCounts(select, items) {
+  if (!select) return;
+  [...select.options].forEach(option => {
+    const item = items.find(row => row.id === option.value);
+    if (!item || / - \d+ in inventory$/.test(option.textContent || "")) return;
+    option.textContent = `${option.textContent}${inventoryCountLabel(item)}`;
+  });
+}
+
 function explainForm(form) {
   const card = form.closest(".card");
   if (!card || card.querySelector("[data-two-diaper-help]")) return;
@@ -118,6 +163,10 @@ async function patchForm(form) {
 
   const ctx = await activeContext().catch(() => null);
   const wearing = ctx ? await latestWearing(ctx.household.id).catch(() => null) : null;
+  const items = ctx ? await inventoryItems(ctx.household.id).catch(() => []) : [];
+  annotateInventoryCounts(takenOffSelect, items);
+  annotateInventoryCounts(putOnSelect, items);
+  annotateInventoryCounts(form.querySelector('select[name="insert_ids"]'), items);
   if (wearing?.diaperId && [...takenOffSelect.options].some(option => option.value === wearing.diaperId)) {
     takenOffSelect.value = wearing.diaperId;
   }
@@ -176,7 +225,11 @@ async function saveTwoDiaperLog(form, submitter) {
     submitter.textContent = originalText;
   }
   if (error) return toast(`Log could not save: ${error.message}`);
-  toast("Log saved.");
+  const inventoryError = await decrementInventory(baseRow.put_on_diaper_id, baseRow.insert_ids);
+  if (inventoryError) {
+    return toast(`Log saved, but inventory did not update: ${inventoryError.message}`);
+  }
+  toast("Log saved. Inventory updated.");
   document.querySelector('[data-tab="dashboard"]')?.click();
 }
 
