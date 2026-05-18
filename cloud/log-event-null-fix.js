@@ -56,6 +56,7 @@ async function writableHouseholdForCurrentUser() {
 document.addEventListener("submit", async event => {
   const form = event.target;
   if (!isLogForm(form)) return;
+  if (form.querySelector("[name='put_on_diaper_id']")) return;
 
   event.preventDefault();
   event.stopPropagation();
