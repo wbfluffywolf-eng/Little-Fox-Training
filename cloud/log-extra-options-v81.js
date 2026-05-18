@@ -51,6 +51,44 @@ function removeCathStentControls(form) {
   form.querySelector('[data-cath-stent-state="true"]')?.remove();
 }
 
+function checkboxRow(form) {
+  return [...(form?.querySelectorAll?.(".pill-row") || [])].find(row =>
+    row.querySelector('[name="leaked"]') || row.querySelector('[name="accident"]')
+  );
+}
+
+function notesLabel(form) {
+  return form.querySelector('textarea[name="notes"]')?.closest("label") || null;
+}
+
+function injectCathStentControls(form) {
+  if (form.querySelector('[data-catheter-stent-note="true"]')) return;
+  const row = checkboxRow(form);
+  const notes = notesLabel(form);
+  if (!row && !notes) return;
+  const check = document.createElement("label");
+  check.dataset.catheterStentNote = "true";
+  check.innerHTML = `<span><input type="checkbox" name="catheter_stent_note"> Cath / stent use</span>`;
+  if (row) row.appendChild(check);
+  else notes.insertAdjacentElement("beforebegin", check);
+
+  if (form.querySelector('[data-cath-stent-state="true"]')) return;
+  const state = document.createElement("label");
+  state.dataset.cathStentState = "true";
+  state.innerHTML = `Cath / stent state<select name="catheter_stent_state">
+    <option value="">Choose if needed</option>
+    <option value="catheter in">Catheter in</option>
+    <option value="stent in">Stent in</option>
+    <option value="catheter and stent in">Catheter and stent in</option>
+    <option value="changed or cleaned">Changed or cleaned</option>
+    <option value="leaking around it">Leaking around it</option>
+    <option value="blocked or kinked">Blocked or kinked</option>
+    <option value="irritated or sore">Irritated or sore</option>
+    <option value="removed">Removed</option>
+  </select>`;
+  notes?.insertAdjacentElement("beforebegin", state);
+}
+
 function removeChastityControls(form) {
   form.querySelector('[data-chastity-note="true"]')?.remove();
   form.querySelector('[data-chastity-state="true"]')?.remove();
@@ -58,11 +96,15 @@ function removeChastityControls(form) {
 
 function injectChastityControls(form) {
   if (form.querySelector('[data-chastity-note="true"]')) return;
-  const notes = form.querySelector('textarea[name="notes"]');
-  if (!notes) return;
+  const row = checkboxRow(form);
+  const notes = notesLabel(form);
+  if (!row && !notes) return;
   const check = document.createElement("label");
   check.dataset.chastityNote = "true";
   check.innerHTML = `<span><input type="checkbox" name="chastity_note"> Chastity use</span>`;
+  if (row) row.appendChild(check);
+  else notes.insertAdjacentElement("beforebegin", check);
+  if (form.querySelector('[data-chastity-state="true"]')) return;
   const state = document.createElement("label");
   state.dataset.chastityState = "true";
   state.innerHTML = `Chastity state<select name="chastity_state">
@@ -72,15 +114,15 @@ function injectChastityControls(form) {
     <option value="cleaning">Cleaning</option>
     <option value="discomfort">Discomfort</option>
   </select>`;
-  notes.closest("label")?.insertAdjacentElement("beforebegin", state);
-  notes.closest("label")?.insertAdjacentElement("beforebegin", check);
+  notes?.insertAdjacentElement("beforebegin", state);
 }
 
 function applyControls() {
   extraOptionsPanel();
   const options = loadExtraOptions();
   document.querySelectorAll("#logForm, #clothWearForm").forEach(form => {
-    if (!options.cathStent) removeCathStentControls(form);
+    if (options.cathStent) injectCathStentControls(form);
+    else removeCathStentControls(form);
     if (options.chastity) injectChastityControls(form);
     else removeChastityControls(form);
   });
