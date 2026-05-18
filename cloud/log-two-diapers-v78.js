@@ -35,7 +35,14 @@ async function activeContext() {
   return { session, member, household: member.households };
 }
 
-async function latestWearingId(householdId) {
+function dateTimeLocal(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+async function latestWearing(householdId) {
   const { data } = await supabase
     .from("logs")
     .select("diaper_id, put_on_diaper_id, happened_at, changed_at, created_at")
@@ -43,7 +50,10 @@ async function latestWearingId(householdId) {
     .order("happened_at", { ascending: false })
     .limit(1);
   const latest = data?.[0];
-  return latest?.put_on_diaper_id || latest?.diaper_id || "";
+  return {
+    diaperId: latest?.put_on_diaper_id || latest?.diaper_id || "",
+    putOnAt: latest?.changed_at || latest?.happened_at || latest?.created_at || ""
+  };
 }
 
 function explainForm(form) {
@@ -52,8 +62,34 @@ function explainForm(form) {
   const help = document.createElement("p");
   help.dataset.twoDiaperHelp = "true";
   help.className = "muted";
-  help.textContent = "Wet, messy, dry, leaked, and accident describe the diaper taken off. New diaper put on is the fresh diaper after the change.";
+  help.textContent = "Wet, messy, dry, leaked, and accident describe the diaper taken off. New diaper put on starts after this change.";
   form.insertAdjacentElement("beforebegin", help);
+}
+
+function simplifyTiming(form) {
+  const changedAt = form.querySelector('[name="changed_at"]');
+  const putOnAt = form.querySelector('[name="put_on_at"]');
+  const dayNight = form.querySelector('select[name="day_night"]');
+  const subcategory = form.querySelector('select[name="subcategory"]');
+  if (changedAt) changedAt.value = dateTimeLocal();
+  const putOnLabel = putOnAt?.closest("label");
+  if (putOnLabel?.childNodes[0]?.nodeType === Node.TEXT_NODE) {
+    putOnLabel.childNodes[0].textContent = "Old diaper put on at";
+  }
+  const dayNightLabel = dayNight?.closest("label");
+  if (dayNightLabel?.childNodes[0]?.nodeType === Node.TEXT_NODE) {
+    dayNightLabel.childNodes[0].textContent = "When";
+  }
+  if (dayNight && !dayNight.querySelector('option[value="evening"]')) {
+    const option = document.createElement("option");
+    option.value = "evening";
+    option.textContent = "Evening";
+    dayNight.insertBefore(option, dayNight.querySelector('option[value="before_bed"]') || null);
+  }
+  if (subcategory) {
+    subcategory.value = "";
+    subcategory.closest("label")?.remove();
+  }
 }
 
 async function patchForm(form) {
@@ -76,19 +112,26 @@ async function patchForm(form) {
     takenOffLabel.childNodes[0].textContent = "Diaper taken off";
   }
   putOnLabel.insertAdjacentElement("beforebegin", takenOffLabel);
+  simplifyTiming(form);
   explainForm(form);
   form.dataset.twoDiaperReady = "true";
 
   const ctx = await activeContext().catch(() => null);
-  const wearingId = ctx ? await latestWearingId(ctx.household.id).catch(() => "") : "";
-  if (wearingId && [...takenOffSelect.options].some(option => option.value === wearingId)) {
-    takenOffSelect.value = wearingId;
+  const wearing = ctx ? await latestWearing(ctx.household.id).catch(() => null) : null;
+  if (wearing?.diaperId && [...takenOffSelect.options].some(option => option.value === wearing.diaperId)) {
+    takenOffSelect.value = wearing.diaperId;
+  }
+  const putOnAt = form.querySelector('[name="put_on_at"]');
+  if (putOnAt && wearing?.putOnAt) {
+    putOnAt.value = dateTimeLocal(wearing.putOnAt);
   }
 }
 
 async function saveTwoDiaperLog(form, submitter) {
   const ctx = await activeContext();
   if (!ctx) return toast("Please sign in again.");
+  const changedInput = form.querySelector('[name="changed_at"]');
+  if (changedInput && !changedInput.value) changedInput.value = dateTimeLocal();
   const data = new FormData(form);
   const changedAt = data.get("changed_at") || new Date().toISOString();
   const baseNotes = String(data.get("notes") || "").trim();
@@ -100,8 +143,8 @@ async function saveTwoDiaperLog(form, submitter) {
     happened_at: new Date(changedAt).toISOString(),
     changed_at: new Date(changedAt).toISOString(),
     put_on_at: data.get("put_on_at") ? new Date(data.get("put_on_at")).toISOString() : null,
-    day_night: data.get("day_night") || "day",
-    subcategory: data.get("subcategory") || null,
+    day_night: data.get("day_night") || "auto",
+    subcategory: null,
     leaked: data.has("leaked"),
     accident: data.has("accident"),
     notes: baseNotes,
