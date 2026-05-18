@@ -51,18 +51,21 @@ async function loadLogs() {
 }
 
 function logItem(log) {
+  const takenOff = log.taken_off_diaper ? `${log.taken_off_diaper.brand} ${log.taken_off_diaper.style}${log.taken_off_diaper.size ? ` (${log.taken_off_diaper.size})` : ""}` : "";
+  const putOn = log.put_on_diaper ? `${log.put_on_diaper.brand} ${log.put_on_diaper.style}${log.put_on_diaper.size ? ` (${log.put_on_diaper.size})` : ""}` : "";
   const diaper = log.diapers ? `${log.diapers.brand} ${log.diapers.style}${log.diapers.size ? ` (${log.diapers.size})` : ""}` : "No diaper selected";
   return `
     <div class="item">
       <div class="item-head">
         <div>
           <h4>${esc(label(log.event))} on ${esc(new Date(log.happened_at || log.changed_at || log.created_at).toLocaleString())}</h4>
-          <p>${esc(diaper)}</p>
+          <p>${takenOff ? `Took off ${esc(takenOff)}` : esc(diaper)}</p>
+          ${putOn ? `<p>Put on ${esc(putOn)}</p>` : ""}
         </div>
       </div>
       <div class="pill-row">
-        ${log.subcategory ? `<span class="pill">${esc(label(log.subcategory))}</span>` : ""}
         ${log.day_night ? `<span class="pill">${esc(label(log.day_night))}</span>` : ""}
+        ${log.subcategory && log.subcategory !== log.day_night ? `<span class="pill">${esc(label(log.subcategory))}</span>` : ""}
         ${log.leaked ? `<span class="pill alert">Leaked</span>` : ""}
         ${log.accident ? `<span class="pill alert">Accident</span>` : ""}
       </div>
