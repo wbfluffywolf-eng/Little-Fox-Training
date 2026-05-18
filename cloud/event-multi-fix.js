@@ -51,6 +51,7 @@ function enhanceLogForm(form) {
 document.addEventListener("submit", async event => {
   if (event.target?.id !== "logForm") return;
   const form = event.target;
+  if (form.querySelector('[name="put_on_diaper_id"]')) return;
   if (form.dataset.logFixHandlesMultiEvent === "true") return;
   const data = new FormData(form);
   if (!data.has("event_wet") && !data.has("event_messed") && !data.has("event_dry")) return;
