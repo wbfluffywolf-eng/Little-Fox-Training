@@ -73,6 +73,7 @@ async function householdForCurrentUser() {
 
 document.addEventListener("submit", async event => {
   if (event.target?.id !== "logForm") return;
+  if (event.target.querySelector('[name="put_on_diaper_id"]')) return;
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
