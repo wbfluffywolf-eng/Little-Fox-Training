@@ -79,9 +79,10 @@ function splitList(value) {
 function itemType(row) {
   const lower = String(row.product_type || row.category || row.type_style || "").toLowerCase();
   if (lower.includes("cloth") && (lower.includes("insert") || lower.includes("booster"))) return "cloth_insert";
+  if (lower.includes("reusable") && (lower.includes("insert") || lower.includes("booster"))) return "cloth_insert";
   if (lower.includes("insert") || lower.includes("booster")) return "disposable_insert";
   if (lower.includes("underpad")) return "underpad";
-  if (lower.includes("cloth") || lower.includes("brief") || lower.includes("diaper")) return "cloth";
+  if (lower.includes("cloth") || lower.includes("reusable") || lower.includes("washable") || lower.includes("diaper shell")) return "cloth";
   return "disposable";
 }
 
