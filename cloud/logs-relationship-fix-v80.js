@@ -33,17 +33,31 @@ async function ownerHousehold() {
 
 async function loadLogs() {
   const ctx = await ownerHousehold();
-  if (!ctx) return { logs: [], household: null };
-  const { data, error } = await supabase
-    .from("logs")
-    .select("*, taken_off_diaper:diapers!logs_diaper_id_fkey(brand, style, size, item_type, purchase_price), put_on_diaper:diapers!logs_put_on_diaper_id_fkey(brand, style, size, item_type, purchase_price)")
-    .eq("household_id", ctx.household.id)
-    .order("happened_at", { ascending: false })
-    .limit(500);
-  if (error) throw error;
+  if (!ctx) return { logs: [], diapers: [], expenses: [], household: null };
+  const [logsResult, diapersResult, expensesResult] = await Promise.all([
+    supabase
+      .from("logs")
+      .select("*, taken_off_diaper:diapers!logs_diaper_id_fkey(brand, style, size, item_type, purchase_price), put_on_diaper:diapers!logs_put_on_diaper_id_fkey(brand, style, size, item_type, purchase_price)")
+      .eq("household_id", ctx.household.id)
+      .order("happened_at", { ascending: false })
+      .limit(500),
+    supabase
+      .from("diapers")
+      .select("id, brand, style, size, item_type, purchase_price, stock_count")
+      .eq("household_id", ctx.household.id)
+      .limit(1000),
+    supabase
+      .from("expenses")
+      .select("amount, category")
+      .eq("household_id", ctx.household.id)
+      .limit(500)
+  ]);
+  if (logsResult.error) throw logsResult.error;
   return {
     household: ctx.household,
-    logs: (data || []).map(log => ({
+    diapers: diapersResult.error ? [] : diapersResult.data || [],
+    expenses: expensesResult.error ? [] : expensesResult.data || [],
+    logs: (logsResult.data || []).map(log => ({
       ...log,
       diapers: log.taken_off_diaper || log.put_on_diaper || null
     }))
@@ -81,6 +95,91 @@ function stats(logs) {
     dry: logs.filter(log => log.event === "dry").length,
     leaks: logs.filter(log => log.leaked).length
   };
+}
+
+function money(value) {
+  return Number(value || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
+}
+
+function sum(values, pick) {
+  return values.reduce((total, item) => total + Number(pick(item) || 0), 0);
+}
+
+function progressRow(labelText, value, max) {
+  const percent = max ? Math.max(2, Math.round(value / max * 100)) : 2;
+  return `
+    <div class="bar-row">
+      <span>${esc(labelText)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${percent}%"></div></div>
+      <b>${esc(value)}</b>
+    </div>
+  `;
+}
+
+function trendGroup(title, rows) {
+  const max = Math.max(0, ...rows.map(row => row.value));
+  return `
+    <article class="card">
+      <h3>${esc(title)}</h3>
+      <div class="bars">
+        ${rows.some(row => row.value) ? rows.map(row => progressRow(row.label, row.value, max)).join("") : `<div class="empty">No data yet.</div>`}
+      </div>
+    </article>
+  `;
+}
+
+function expenseType(item) {
+  const type = String(item.item_type || item.category || "").toLowerCase();
+  if (type.includes("cloth") || type.includes("insert") || type.includes("booster")) return "Cloth";
+  if (type.includes("supply") || type.includes("cream") || type.includes("wipe")) return "Supplies";
+  return "Disposable";
+}
+
+function renderTrends(logs, diapers, expenses) {
+  const s = stats(logs);
+  const nightCount = logs.filter(log => {
+    const when = String(log.day_night || log.subcategory || "").toLowerCase();
+    return ["night", "before_bed", "before bed", "overnight", "while_sleeping", "night_change", "night_accident"].includes(when);
+  }).length;
+  const accidentCount = logs.filter(log => log.accident).length;
+  const diaperSpend = diapers.reduce((total, item) => total + Number(item.purchase_price || 0) * Math.max(1, Number(item.stock_count || 1)), 0);
+  const expenseSpend = sum(expenses, item => item.amount);
+  const spendRows = ["Disposable", "Cloth", "Supplies"].map(name => ({
+    label: `${name} ${money(sum(diapers.filter(item => expenseType(item) === name), item => Number(item.purchase_price || 0) * Math.max(1, Number(item.stock_count || 1))) + sum(expenses.filter(item => expenseType(item) === name), item => item.amount))}`,
+    value: sum(diapers.filter(item => expenseType(item) === name), item => Number(item.purchase_price || 0) * Math.max(1, Number(item.stock_count || 1))) + sum(expenses.filter(item => expenseType(item) === name), item => item.amount)
+  }));
+  const eventRows = [
+    { label: "Wet", value: s.wet },
+    { label: "Messed", value: s.messed },
+    { label: "Dry", value: s.dry },
+    { label: "Leaks", value: s.leaks },
+    { label: "Accidents", value: accidentCount }
+  ];
+  const whenRows = [
+    { label: "Night", value: nightCount },
+    { label: "Day", value: Math.max(0, logs.length - nightCount) },
+    { label: "Leaks", value: s.leaks },
+    { label: "Accidents", value: accidentCount }
+  ];
+  return `
+    <section class="grid three">
+      <article class="card"><h3>Wet</h3><h2>${s.wet}</h2><p>events</p></article>
+      <article class="card"><h3>Messed</h3><h2>${s.messed}</h2><p>events</p></article>
+      <article class="card"><h3>Dry</h3><h2>${s.dry}</h2><p>events</p></article>
+    </section>
+    <section class="grid two" style="margin-top:14px">
+      ${trendGroup("Sleep and Day Summary", whenRows)}
+      ${trendGroup("Expense Split", spendRows)}
+    </section>
+    <section class="grid two" style="margin-top:14px">
+      ${trendGroup("Event Type", eventRows)}
+      <article class="card">
+        <h3>Total Spent</h3>
+        <h2>${money(diaperSpend + expenseSpend)}</h2>
+        <p>inventory plus expenses</p>
+      </article>
+    </section>
+  `;
 }
 
 function renderDashboardLogs(logs) {
@@ -170,10 +269,12 @@ async function repairLogsView(force = false) {
   const view = document.getElementById("view");
   if (!view || !["Dashboard", "Calendar", "Daily Log", "Trends"].includes(title || "")) return;
   if (view.dataset.logsRelationshipFix === "true" && !force) return;
-  const { logs } = await loadLogs();
+  const { logs, diapers, expenses } = await loadLogs();
   view.dataset.logsRelationshipFix = "true";
   if (title === "Calendar") {
     view.innerHTML = renderCalendar(logs);
+  } else if (title === "Trends") {
+    view.innerHTML = renderTrends(logs, diapers, expenses);
   } else {
     renderDashboardLogs(logs);
   }
