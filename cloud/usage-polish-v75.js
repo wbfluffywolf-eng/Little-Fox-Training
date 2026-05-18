@@ -2,8 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./supabase-config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-const APP_VERSION = "v82";
-const LATEST_LINK = "https://wbfluffywolf-eng.github.io/Little-Fox-Training/cloud/?v=82";
+const APP_VERSION = "v85";
+const LATEST_LINK = "https://wbfluffywolf-eng.github.io/Little-Fox-Training/cloud/?v=85";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -165,6 +165,13 @@ async function injectDiaperPerformance() {
   const view = document.getElementById("view");
   const householdId = await activeHouseholdId();
   if (!view || !householdId) return;
+  document.getElementById("cloudFullTrendCards")?.remove();
+  [...view.querySelectorAll(".card h3")].forEach(heading => {
+    const title = heading.textContent.trim();
+    if (title === "Diaper Usage" || title === "Cloth Cost Per Wear") {
+      heading.closest(".card")?.remove();
+    }
+  });
   const [diapersResult, logsResult] = await Promise.all([
     supabase.from("diapers").select("id, brand, style, size, item_type").eq("household_id", householdId).limit(500),
     supabase.from("logs").select("event, leaked, diaper_id, insert_ids").eq("household_id", householdId).limit(1000)
