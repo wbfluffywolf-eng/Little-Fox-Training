@@ -92,12 +92,24 @@ function inventoryCountLabel(item) {
   return Number.isFinite(count) ? ` - ${count} in inventory` : "";
 }
 
+function clothLike(item) {
+  return ["cloth", "cloth_insert", "underpad"].includes(item?.item_type);
+}
+
 function annotateInventoryCounts(select, items) {
   if (!select) return;
   [...select.options].forEach(option => {
     const item = items.find(row => row.id === option.value);
     if (!item || / - \d+ in inventory$/.test(option.textContent || "")) return;
     option.textContent = `${option.textContent}${inventoryCountLabel(item)}`;
+  });
+}
+
+function removeClothOptions(select, items) {
+  if (!select) return;
+  [...select.options].forEach(option => {
+    const item = items.find(row => row.id === option.value);
+    if (clothLike(item)) option.remove();
   });
 }
 
@@ -138,9 +150,17 @@ function simplifyTiming(form) {
 }
 
 async function patchForm(form) {
-  if (!form || form.dataset.twoDiaperReady === "true") return;
+  if (!form || form.dataset.twoDiaperReady === "true" || form.dataset.twoDiaperPatching === "true") return;
+  if (form.querySelector('select[name="put_on_diaper_id"]')) {
+    form.dataset.twoDiaperReady = "true";
+    return;
+  }
+  form.dataset.twoDiaperPatching = "true";
   const putOnSelect = form.querySelector('select[name="diaper_id"]');
-  if (!putOnSelect) return;
+  if (!putOnSelect) {
+    delete form.dataset.twoDiaperPatching;
+    return;
+  }
   const submitButton = form.querySelector('button[type="submit"]');
   const originalSubmitText = submitButton?.textContent || "Save";
   if (submitButton) {
@@ -170,6 +190,7 @@ async function patchForm(form) {
   const ctx = await activeContext().catch(() => null);
   const wearing = ctx ? await latestWearing(ctx.household.id).catch(() => null) : null;
   const items = ctx ? await inventoryItems(ctx.household.id).catch(() => []) : [];
+  if (form.id === "logForm") removeClothOptions(putOnSelect, items);
   annotateInventoryCounts(takenOffSelect, items);
   annotateInventoryCounts(putOnSelect, items);
   annotateInventoryCounts(form.querySelector('select[name="insert_ids"]'), items);
@@ -181,6 +202,7 @@ async function patchForm(form) {
     putOnAt.value = dateTimeLocal(wearing.putOnAt);
   }
   form.dataset.twoDiaperReady = "true";
+  delete form.dataset.twoDiaperPatching;
   if (submitButton) {
     submitButton.disabled = false;
     submitButton.textContent = originalSubmitText;
