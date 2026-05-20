@@ -73,8 +73,8 @@ function logItem(log) {
       <div class="item-head">
         <div>
           <h4>${esc(label(log.event))} on ${esc(new Date(log.happened_at || log.changed_at || log.created_at).toLocaleString())}</h4>
-          <p>${takenOff ? `Took off ${esc(takenOff)}` : esc(diaper)}</p>
           ${putOn ? `<p>Put on ${esc(putOn)}</p>` : ""}
+          ${takenOff ? `<p>Took off ${esc(takenOff)}</p>` : (!putOn ? `<p>${esc(diaper)}</p>` : "")}
         </div>
       </div>
       <div class="pill-row">
@@ -105,13 +105,14 @@ function sum(values, pick) {
   return values.reduce((total, item) => total + Number(pick(item) || 0), 0);
 }
 
-function progressRow(labelText, value, max) {
+function progressRow(row, max) {
+  const value = Number(row.value || 0);
   const percent = max ? Math.max(2, Math.round(value / max * 100)) : 2;
   return `
     <div class="bar-row">
-      <span>${esc(labelText)}</span>
+      <span>${esc(row.label)}</span>
       <div class="bar-track"><div class="bar-fill" style="width:${percent}%"></div></div>
-      <b>${esc(value)}</b>
+      <b>${esc(row.display ?? value)}</b>
     </div>
   `;
 }
@@ -122,7 +123,7 @@ function trendGroup(title, rows) {
     <article class="card">
       <h3>${esc(title)}</h3>
       <div class="bars">
-        ${rows.some(row => row.value) ? rows.map(row => progressRow(row.label, row.value, max)).join("") : `<div class="empty">No data yet.</div>`}
+        ${rows.some(row => row.value) ? rows.map(row => progressRow(row, max)).join("") : `<div class="empty">No data yet.</div>`}
       </div>
     </article>
   `;
@@ -142,12 +143,13 @@ function renderTrends(logs, diapers, expenses) {
     return ["night", "before_bed", "before bed", "overnight", "while_sleeping", "night_change", "night_accident"].includes(when);
   }).length;
   const accidentCount = logs.filter(log => log.accident).length;
-  const diaperSpend = diapers.reduce((total, item) => total + Number(item.purchase_price || 0) * Math.max(1, Number(item.stock_count || 1)), 0);
+  const diaperSpend = sum(diapers, item => item.purchase_price);
   const expenseSpend = sum(expenses, item => item.amount);
-  const spendRows = ["Disposable", "Cloth", "Supplies"].map(name => ({
-    label: `${name} ${money(sum(diapers.filter(item => expenseType(item) === name), item => Number(item.purchase_price || 0) * Math.max(1, Number(item.stock_count || 1))) + sum(expenses.filter(item => expenseType(item) === name), item => item.amount))}`,
-    value: sum(diapers.filter(item => expenseType(item) === name), item => Number(item.purchase_price || 0) * Math.max(1, Number(item.stock_count || 1))) + sum(expenses.filter(item => expenseType(item) === name), item => item.amount)
-  }));
+  const spendRows = ["Disposable", "Cloth", "Supplies"].map(name => {
+    const value = sum(diapers.filter(item => expenseType(item) === name), item => item.purchase_price)
+      + sum(expenses.filter(item => expenseType(item) === name), item => item.amount);
+    return { label: name, value, display: money(value) };
+  });
   const eventRows = [
     { label: "Wet", value: s.wet },
     { label: "Messed", value: s.messed },
