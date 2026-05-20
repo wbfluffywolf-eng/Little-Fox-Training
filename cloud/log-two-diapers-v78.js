@@ -141,6 +141,12 @@ async function patchForm(form) {
   if (!form || form.dataset.twoDiaperReady === "true") return;
   const putOnSelect = form.querySelector('select[name="diaper_id"]');
   if (!putOnSelect) return;
+  const submitButton = form.querySelector('button[type="submit"]');
+  const originalSubmitText = submitButton?.textContent || "Save";
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Loading current diaper...";
+  }
 
   putOnSelect.name = "put_on_diaper_id";
   const putOnLabel = putOnSelect.closest("label");
@@ -153,13 +159,13 @@ async function patchForm(form) {
   const takenOffLabel = putOnLabel.cloneNode(true);
   const takenOffSelect = takenOffLabel.querySelector("select");
   takenOffSelect.name = "diaper_id";
+  takenOffSelect.value = "";
   if (takenOffLabel.childNodes[0]?.nodeType === Node.TEXT_NODE) {
     takenOffLabel.childNodes[0].textContent = "Diaper taken off";
   }
   putOnLabel.insertAdjacentElement("beforebegin", takenOffLabel);
   simplifyTiming(form);
   explainForm(form);
-  form.dataset.twoDiaperReady = "true";
 
   const ctx = await activeContext().catch(() => null);
   const wearing = ctx ? await latestWearing(ctx.household.id).catch(() => null) : null;
@@ -173,6 +179,11 @@ async function patchForm(form) {
   const putOnAt = form.querySelector('[name="put_on_at"]');
   if (putOnAt && wearing?.putOnAt) {
     putOnAt.value = dateTimeLocal(wearing.putOnAt);
+  }
+  form.dataset.twoDiaperReady = "true";
+  if (submitButton) {
+    submitButton.disabled = false;
+    submitButton.textContent = originalSubmitText;
   }
 }
 
