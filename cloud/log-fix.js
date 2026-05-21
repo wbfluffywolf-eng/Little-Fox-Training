@@ -28,6 +28,12 @@ function selectedEvents(data) {
   return events.length ? events : [legacyEvent || "wet"];
 }
 
+function selectedDiaperIsPutOn(form) {
+  const select = form.querySelector('select[name="diaper_id"]');
+  const labelText = select?.closest("label")?.textContent || "";
+  return /new\s+(cloth\s+)?diaper\s+put\s+on/i.test(labelText);
+}
+
 async function decrementInventory(diaperId, insertIds) {
   const ids = [diaperId, ...insertIds].filter(Boolean);
   if (!ids.length) return null;
@@ -90,9 +96,12 @@ document.addEventListener("submit", async event => {
     const { householdId, userId } = await householdForCurrentUser();
     const data = new FormData(form);
     const changedAt = data.get("changed_at") || new Date().toISOString();
+    const selectedDiaperId = data.get("diaper_id") || null;
+    const useSelectedAsPutOn = selectedDiaperIsPutOn(form);
     const baseRow = {
       household_id: householdId,
-      diaper_id: data.get("diaper_id") || null,
+      diaper_id: useSelectedAsPutOn ? null : selectedDiaperId,
+      put_on_diaper_id: useSelectedAsPutOn ? selectedDiaperId : null,
       insert_ids: data.getAll("insert_ids").filter(Boolean),
       happened_at: toIso(changedAt),
       changed_at: toIso(changedAt),
@@ -112,9 +121,10 @@ document.addEventListener("submit", async event => {
     }));
 
     let { error } = await supabase.from("logs").insert(rows);
-    if (error && /insert_ids|changed_at|subcategory/i.test(error.message || "")) {
+    if (error && /put_on_diaper_id|insert_ids|changed_at|subcategory/i.test(error.message || "")) {
       const legacyRows = rows.map(row => {
         const legacyRow = { ...row };
+        if (/put_on_diaper_id/i.test(error.message || "")) delete legacyRow.put_on_diaper_id;
         delete legacyRow.insert_ids;
         delete legacyRow.changed_at;
         delete legacyRow.subcategory;
@@ -125,7 +135,7 @@ document.addEventListener("submit", async event => {
     }
     if (error) throw error;
 
-    const inventoryError = await decrementInventory(baseRow.diaper_id, baseRow.insert_ids);
+    const inventoryError = await decrementInventory(baseRow.put_on_diaper_id || baseRow.diaper_id, baseRow.insert_ids);
     if (inventoryError) {
       showToast(`Log saved, but inventory did not update: ${inventoryError.message}`);
       window.setTimeout(() => window.location.reload(), 1400);
