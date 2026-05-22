@@ -190,7 +190,11 @@ async function patchForm(form) {
   const ctx = await activeContext().catch(() => null);
   const wearing = ctx ? await latestWearing(ctx.household.id).catch(() => null) : null;
   const items = ctx ? await inventoryItems(ctx.household.id).catch(() => []) : [];
-  if (form.id === "logForm") removeClothOptions(putOnSelect, items);
+  if (form.id === "logForm") {
+    removeClothOptions(takenOffSelect, items);
+    removeClothOptions(putOnSelect, items);
+    removeClothOptions(form.querySelector('select[name="insert_ids"]'), items);
+  }
   annotateInventoryCounts(takenOffSelect, items);
   annotateInventoryCounts(putOnSelect, items);
   annotateInventoryCounts(form.querySelector('select[name="insert_ids"]'), items);
