@@ -1,7 +1,8 @@
 const extraOptionsKey = "littleFoxLogExtraOptions";
 const defaultExtraOptions = {
   cathStent: true,
-  chastity: false
+  chastity: false,
+  buttPlug: false
 };
 
 function loadExtraOptions() {
@@ -40,6 +41,10 @@ function extraOptionsPanel() {
     <label>
       <input type="checkbox" name="show_chastity" ${options.chastity ? "checked" : ""}>
       <span>Show chastity use</span>
+    </label>
+    <label>
+      <input type="checkbox" name="show_butt_plug" ${options.buttPlug ? "checked" : ""}>
+      <span>Show butt plug use</span>
     </label>
   `;
   const saveButton = panel.querySelector("[data-save-auto-slots]");
@@ -94,6 +99,11 @@ function removeChastityControls(form) {
   form.querySelector('[data-chastity-state="true"]')?.remove();
 }
 
+function removeButtPlugControls(form) {
+  form.querySelector('[data-butt-plug-note="true"]')?.remove();
+  form.querySelector('[data-butt-plug-state="true"]')?.remove();
+}
+
 function injectChastityControls(form) {
   if (form.querySelector('[data-chastity-note="true"]')) return;
   const row = checkboxRow(form);
@@ -117,6 +127,29 @@ function injectChastityControls(form) {
   notes?.insertAdjacentElement("beforebegin", state);
 }
 
+function injectButtPlugControls(form) {
+  if (form.querySelector('[data-butt-plug-note="true"]')) return;
+  const row = checkboxRow(form);
+  const notes = notesLabel(form);
+  if (!row && !notes) return;
+  const check = document.createElement("label");
+  check.dataset.buttPlugNote = "true";
+  check.innerHTML = `<span><input type="checkbox" name="butt_plug_note"> Butt plug use</span>`;
+  if (row) row.appendChild(check);
+  else notes.insertAdjacentElement("beforebegin", check);
+  if (form.querySelector('[data-butt-plug-state="true"]')) return;
+  const state = document.createElement("label");
+  state.dataset.buttPlugState = "true";
+  state.innerHTML = `Butt plug state<select name="butt_plug_state">
+    <option value="in">In</option>
+    <option value="removed">Removed</option>
+    <option value="changed">Changed</option>
+    <option value="cleaning">Cleaning</option>
+    <option value="discomfort">Discomfort</option>
+  </select>`;
+  notes?.insertAdjacentElement("beforebegin", state);
+}
+
 function applyControls() {
   extraOptionsPanel();
   const options = loadExtraOptions();
@@ -125,6 +158,8 @@ function applyControls() {
     else removeCathStentControls(form);
     if (options.chastity) injectChastityControls(form);
     else removeChastityControls(form);
+    if (options.buttPlug) injectButtPlugControls(form);
+    else removeButtPlugControls(form);
   });
 }
 
@@ -140,12 +175,25 @@ function appendChastityNote(form) {
   notes.value = current ? `${current} ${addition}` : addition;
 }
 
+function appendButtPlugNote(form) {
+  if (!loadExtraOptions().buttPlug) return;
+  if (!form.querySelector('[name="butt_plug_note"]:checked')) return;
+  const notes = form.querySelector('textarea[name="notes"]');
+  if (!notes) return;
+  const state = form.querySelector('[name="butt_plug_state"]')?.value;
+  const addition = state ? `Butt plug use: ${state}.` : "Butt plug use.";
+  const current = notes.value.trim();
+  if (current.toLowerCase().includes("butt plug use")) return;
+  notes.value = current ? `${current} ${addition}` : addition;
+}
+
 document.addEventListener("change", event => {
   const input = event.target.closest?.('[data-log-extra-options] input[type="checkbox"]');
   if (!input) return;
   const options = loadExtraOptions();
   if (input.name === "show_cath_stent") options.cathStent = input.checked;
   if (input.name === "show_chastity") options.chastity = input.checked;
+  if (input.name === "show_butt_plug") options.buttPlug = input.checked;
   saveExtraOptions(options);
   applyControls();
   toast("Log change options saved.");
@@ -153,12 +201,18 @@ document.addEventListener("change", event => {
 
 document.addEventListener("click", event => {
   const form = event.target.closest?.('#logForm button[type="submit"], #clothWearForm button[type="submit"]')?.closest("form");
-  if (form) appendChastityNote(form);
+  if (form) {
+    appendChastityNote(form);
+    appendButtPlugNote(form);
+  }
   if (event.target.closest?.("[data-tab]")) setTimeout(applyControls, 180);
 }, true);
 
 document.addEventListener("submit", event => {
-  if (event.target?.matches?.("#logForm, #clothWearForm")) appendChastityNote(event.target);
+  if (event.target?.matches?.("#logForm, #clothWearForm")) {
+    appendChastityNote(event.target);
+    appendButtPlugNote(event.target);
+  }
 }, true);
 
 new MutationObserver(applyControls).observe(document.body, { childList: true, subtree: true });
