@@ -113,6 +113,20 @@ function removeClothOptions(select, items) {
   });
 }
 
+function removeDailyClothFields(form) {
+  if (form?.id !== "logForm") return;
+  form.querySelectorAll("label").forEach(label => {
+    const heading = [...label.childNodes]
+      .filter(node => node.nodeType === Node.TEXT_NODE)
+      .map(node => node.textContent || "")
+      .join(" ")
+      .trim();
+    if (/^new\s+cloth\s+diaper\s+put\s+on/i.test(heading)) {
+      label.remove();
+    }
+  });
+}
+
 function explainForm(form) {
   const card = form.closest(".card");
   if (!card || card.querySelector("[data-two-diaper-help]")) return;
@@ -150,6 +164,7 @@ function simplifyTiming(form) {
 }
 
 async function patchForm(form) {
+  removeDailyClothFields(form);
   if (!form || form.dataset.twoDiaperReady === "true" || form.dataset.twoDiaperPatching === "true") return;
   if (form.querySelector('select[name="put_on_diaper_id"]')) {
     form.dataset.twoDiaperReady = "true";
@@ -191,6 +206,7 @@ async function patchForm(form) {
   const wearing = ctx ? await latestWearing(ctx.household.id).catch(() => null) : null;
   const items = ctx ? await inventoryItems(ctx.household.id).catch(() => []) : [];
   if (form.id === "logForm") {
+    removeDailyClothFields(form);
     removeClothOptions(takenOffSelect, items);
     removeClothOptions(putOnSelect, items);
     removeClothOptions(form.querySelector('select[name="insert_ids"]'), items);
@@ -272,6 +288,7 @@ async function saveTwoDiaperLog(form, submitter) {
 
 function patchForms() {
   document.querySelectorAll("form").forEach(form => {
+    removeDailyClothFields(form);
     if (logFormIds.has(form.id)) patchForm(form).catch(() => {});
   });
 }
