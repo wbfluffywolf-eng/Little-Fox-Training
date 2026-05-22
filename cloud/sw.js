@@ -1,4 +1,4 @@
-const CACHE_NAME = "little-fox-training-cloud-v99";
+const CACHE_NAME = "little-fox-training-cloud-v100";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -27,6 +27,7 @@ const APP_SHELL = [
   "./updated-quick-add-catalog-v84.js",
   "./suggestion-fix.js",
   "./messages.js",
+  "./message-notifications-v100.js",
   "./message-ping-friend-v78.js",
   "./messages-v70-fix.js",
   "./friends-tab.js",
@@ -79,5 +80,16 @@ self.addEventListener("fetch", event => {
       caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
       return response;
     }).catch(() => caches.match("./index.html")))
+  );
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
+      const existing = clientList.find(client => client.url.includes("/cloud/"));
+      if (existing) return existing.focus();
+      return clients.openWindow("./#messages");
+    })
   );
 });
