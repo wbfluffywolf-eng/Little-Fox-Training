@@ -87,7 +87,7 @@ async function loadContext() {
 }
 
 function logUsesItem(log, id) {
-  return log.diaper_id === id || (Array.isArray(log.insert_ids) && log.insert_ids.includes(id));
+  return log.diaper_id === id || log.put_on_diaper_id === id || (Array.isArray(log.insert_ids) && log.insert_ids.includes(id));
 }
 
 function dirtyCount(ctx, id) {
