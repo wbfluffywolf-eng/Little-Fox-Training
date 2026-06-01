@@ -90,9 +90,11 @@ async function fixTrendSpending() {
   const diapers = diapersResult.data || [];
   const expenses = expensesResult.data || [];
   const typeFor = item => {
-    const type = String(item.item_type || item.category || "").toLowerCase();
-    if (type.includes("cloth") || type.includes("insert") || type.includes("booster")) return "Cloth";
-    if (type.includes("supply") || type.includes("cream") || type.includes("wipe")) return "Supplies";
+    const type = String(item.item_type || "").toLowerCase();
+    const category = String(item.category || "").toLowerCase();
+    if (["cloth", "cloth_insert", "underpad"].includes(type) || category.includes("cloth")) return "Cloth";
+    if (["disposable", "disposable_insert"].includes(type) || category.includes("diaper") || category.includes("booster") || category.includes("insert")) return "Disposable";
+    if (category.includes("supply") || category.includes("cream") || category.includes("wipe") || category.includes("powder") || category.includes("pad")) return "Supplies";
     return "Disposable";
   };
   const rowValue = name =>
