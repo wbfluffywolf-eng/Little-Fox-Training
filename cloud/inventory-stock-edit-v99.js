@@ -35,7 +35,7 @@ function addEditButtons() {
     editButton.className = "btn secondary";
     editButton.type = "button";
     editButton.dataset.inventoryStockEdit = id;
-    editButton.textContent = "Edit count";
+    editButton.textContent = "Edit item";
     deleteButton.insertAdjacentElement("beforebegin", editButton);
   });
 }
@@ -48,7 +48,7 @@ function validCount(value) {
 async function editStockCount(id) {
   const { data: item, error } = await supabase
     .from("diapers")
-    .select("id, brand, style, item_type, stock_count, clean_count")
+    .select("id, brand, style, item_type, stock_count, clean_count, purchase_price")
     .eq("id", id)
     .single();
   if (error) return toast(error.message);
@@ -70,9 +70,16 @@ async function editStockCount(id) {
     updates.clean_count = Math.min(cleanCount, stockCount);
   }
 
+  const priceValue = window.prompt(`What price should be saved for ${name}?`, Number(item.purchase_price || 0).toFixed(2));
+  if (priceValue === null) return;
+
+  const purchasePrice = Number(priceValue);
+  if (!Number.isFinite(purchasePrice) || purchasePrice < 0) return toast("Enter a valid price.");
+  updates.purchase_price = purchasePrice;
+
   const { error: updateError } = await supabase.from("diapers").update(updates).eq("id", id);
   if (updateError) return toast(updateError.message);
-  toast("Inventory count updated.");
+  toast("Inventory item updated.");
 
   const inventoryTab = document.querySelector('[data-tab="inventory"]');
   if (inventoryTab) {
